@@ -16,7 +16,16 @@ import Payments from '@/pages/Payments';
 import Profile from '@/pages/Profile';
 import Inquiries from '@/pages/Inquiries';
 
+import { useEffect } from 'react';
+import { useAuthStore } from '@/store/auth-store';
+
 function App() {
+  const initialize = useAuthStore((state) => state.initialize);
+
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
       <BrowserRouter>
@@ -27,7 +36,7 @@ function App() {
             <Route path="/admin/login" element={<Login />} />
             <Route path="/admin/forgot-password" element={<ForgotPassword />} />
           </Route>
-          
+
           {/* Admin panel routes */}
           <Route
             path="/admin"
@@ -48,7 +57,7 @@ function App() {
             <Route path="inquiries" element={<Inquiries />} />
             <Route path="profile" element={<Profile />} />
           </Route>
-          
+
           {/* Root redirects */}
           <Route path="/" element={<Navigate to="/admin/login" replace />} />
           <Route path="/login" element={<Navigate to="/admin/login" replace />} />

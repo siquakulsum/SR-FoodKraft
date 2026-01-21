@@ -24,18 +24,22 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const success = await login(email, password);
-      if (success) {
-        toast({
-          title: 'Login successful',
-          description: 'Welcome back to SR FoodKraft Admin Panel',
-        });
-        navigate('/admin/dashboard');
-      } else {
-        setError('Invalid email or password');
-      }
-    } catch (err) {
-      setError('An error occurred. Please try again.');
+      await login(email, password);
+
+      toast({
+        title: 'Login successful',
+        description: 'Welcome back to SR FoodKraft Admin Panel',
+      });
+      navigate('/admin/dashboard');
+    } catch (err: any) {
+      const errorMessage = err?.message || 'An error occurred. Please try again.';
+      setError(errorMessage);
+
+      toast({
+        title: 'Login failed',
+        description: errorMessage,
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }

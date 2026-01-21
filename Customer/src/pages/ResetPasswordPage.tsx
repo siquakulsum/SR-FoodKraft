@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff, CheckCircle } from 'lucide-react';
-import { useAuth } from '../hooks/useAuth';
+import { api } from '../services/api';
 import Button from '../components/UI/Button';
 
 export default function ResetPasswordPage() {
@@ -14,14 +14,15 @@ export default function ResetPasswordPage() {
     const [success, setSuccess] = useState(false);
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const { updatePassword } = useAuth();
+    // const { updatePassword } = useAuth();
 
     useEffect(() => {
         // Check if we have the required tokens in the URL
-        const accessToken = searchParams.get('access_token');
-        const refreshToken = searchParams.get('refresh_token');
+        // Check if we have the required tokens in the URL
+        const token = searchParams.get('token');
+        // const refreshToken = searchParams.get('refresh_token');
 
-        if (!accessToken || !refreshToken) {
+        if (!token) {
             setError('Invalid or expired reset link. Please request a new password reset.');
         }
     }, [searchParams]);
@@ -30,6 +31,13 @@ export default function ResetPasswordPage() {
         e.preventDefault();
         setLoading(true);
         setError('');
+
+        const token = searchParams.get('token');
+        if (!token) {
+            setError('Missing reset token');
+            setLoading(false);
+            return;
+        }
 
         try {
             // Validate passwords
@@ -42,7 +50,7 @@ export default function ResetPasswordPage() {
             }
 
             // Update password
-            await updatePassword(password);
+            await api.resetPassword(token, password);
             setSuccess(true);
 
             // Redirect to login after 3 seconds

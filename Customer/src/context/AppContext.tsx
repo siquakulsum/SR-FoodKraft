@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useReducer, ReactNode } from 'react';
+import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
 import { User, CartItem, Order, MenuItemRating, MenuItemStats, Address } from '../types';
-import { menuData } from '../data/menuData';
+import { api } from '../services/api';
 
 interface CartError {
   type: 'MAX_QUANTITY_EXCEEDED';
@@ -51,23 +51,38 @@ const initialState: AppState = {
       items: [
         {
           id: 'starter-1',
-          name: 'Chicken 65',
+          menuItem: {
+            id: 'starter-1',
+            name: 'Chicken 65',
+            description: 'Spicy deep fried chicken',
+            category: 'Starters',
+            image: 'https://images.pexels.com/photos/60616/fried-chicken-chicken-fried-crunchy-60616.jpeg',
+            pricePerKg: 450,
+            isVegetarian: false,
+            isAvailable: true,
+            minQuantity: 1
+          },
           quantity: 2,
           unit: 'kg',
-          price: 450,
-          image: 'https://images.pexels.com/photos/60616/fried-chicken-chicken-fried-crunchy-60616.jpeg'
         },
         {
           id: 'main-1',
-          name: 'Butter Chicken',
+          menuItem: {
+            id: 'main-1',
+            name: 'Butter Chicken',
+            description: 'Chicken in tomato gravy',
+            category: 'Main Course',
+            image: 'https://images.pexels.com/photos/2474661/pexels-photo-2474661.jpeg',
+            pricePerKg: 550,
+            isVegetarian: false,
+            isAvailable: true,
+            minQuantity: 1
+          },
           quantity: 1,
           unit: 'kg',
-          price: 550,
-          image: 'https://images.pexels.com/photos/2474661/pexels-photo-2474661.jpeg'
         }
       ],
       totalAmount: 1450,
-      deliveryCharge: 99,
       eventDate: '2025-01-15',
       eventTime: '19:00',
       deliveryAddress: {
@@ -78,11 +93,9 @@ const initialState: AppState = {
         phone: '+91 98765 43210',
         isDefault: true
       },
-      deliveryMethod: 'door',
       paymentMethod: 'card',
       status: 'delivered',
       createdAt: '2025-01-10T10:00:00Z',
-      updatedAt: '2025-01-15T20:00:00Z'
     },
     {
       id: 'ORD1759245056009',
@@ -90,23 +103,38 @@ const initialState: AppState = {
       items: [
         {
           id: 'rice-1',
-          name: 'Chicken Biryani',
+          menuItem: {
+            id: 'rice-1',
+            name: 'Chicken Biryani',
+            description: 'Authentic Hyderabadi biryani',
+            category: 'Rice',
+            image: 'https://images.pexels.com/photos/2474661/pexels-photo-2474661.jpeg',
+            pricePerKg: 600,
+            isVegetarian: false,
+            isAvailable: true,
+            minQuantity: 1
+          },
           quantity: 3,
           unit: 'kg',
-          price: 600,
-          image: 'https://images.pexels.com/photos/2474661/pexels-photo-2474661.jpeg'
         },
         {
           id: 'starter-2',
-          name: 'Samosas',
+          menuItem: {
+            id: 'starter-2',
+            name: 'Samosas',
+            description: 'Crispy pastry with savory filling',
+            category: 'Starters',
+            image: 'https://images.pexels.com/photos/2474661/pexels-photo-2474661.jpeg',
+            pricePerPiece: 100,
+            isVegetarian: true,
+            isAvailable: true,
+            minQuantity: 12
+          },
           quantity: 2,
-          unit: 'dozen',
-          price: 200,
-          image: 'https://images.pexels.com/photos/2474661/pexels-photo-2474661.jpeg'
+          unit: 'pieces',
         }
       ],
       totalAmount: 2000,
-      deliveryCharge: 199,
       eventDate: '2025-01-20',
       eventTime: '18:30',
       deliveryAddress: {
@@ -117,11 +145,9 @@ const initialState: AppState = {
         phone: '+91 98765 43211',
         isDefault: false
       },
-      deliveryMethod: 'door',
       paymentMethod: 'upi',
       status: 'delivered',
       createdAt: '2025-01-15T14:30:00Z',
-      updatedAt: '2025-01-20T19:30:00Z'
     },
     {
       id: 'ORD1759245056010',
@@ -129,23 +155,38 @@ const initialState: AppState = {
       items: [
         {
           id: 'main-2',
-          name: 'Mutton Curry',
+          menuItem: {
+            id: 'main-2',
+            name: 'Mutton Curry',
+            description: 'Spicy mutton gravy',
+            category: 'Main Course',
+            image: 'https://images.pexels.com/photos/2474661/pexels-photo-2474661.jpeg',
+            pricePerKg: 800,
+            isVegetarian: false,
+            isAvailable: true,
+            minQuantity: 1
+          },
           quantity: 2,
           unit: 'kg',
-          price: 800,
-          image: 'https://images.pexels.com/photos/2474661/pexels-photo-2474661.jpeg'
         },
         {
           id: 'rice-2',
-          name: 'Mutton Biryani',
+          menuItem: {
+            id: 'rice-2',
+            name: 'Mutton Biryani',
+            description: 'Authentic mutton biryani',
+            category: 'Rice',
+            image: 'https://images.pexels.com/photos/2474661/pexels-photo-2474661.jpeg',
+            pricePerKg: 700,
+            isVegetarian: false,
+            isAvailable: true,
+            minQuantity: 1
+          },
           quantity: 2,
           unit: 'kg',
-          price: 700,
-          image: 'https://images.pexels.com/photos/2474661/pexels-photo-2474661.jpeg'
         }
       ],
       totalAmount: 3000,
-      deliveryCharge: 199,
       eventDate: '2025-01-25',
       eventTime: '20:00',
       deliveryAddress: {
@@ -156,16 +197,13 @@ const initialState: AppState = {
         phone: '+91 98765 43210',
         isDefault: true
       },
-      deliveryMethod: 'pickup',
       paymentMethod: 'cod',
       status: 'delivered',
       createdAt: '2025-01-20T16:00:00Z',
-      updatedAt: '2025-01-25T21:00:00Z'
     }
   ],
   isLoggedIn: false,
   ratings: [
-    // Sample ratings for demo
     {
       id: '1',
       menuItemId: 'starter-1',
@@ -512,6 +550,22 @@ function appReducer(state: AppState, action: AppAction): AppState {
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const user = await api.getProfile();
+          dispatch({ type: 'LOGIN', payload: user });
+        } catch (error) {
+          console.error('Session restore failed:', error);
+          localStorage.removeItem('token');
+        }
+      }
+    };
+    checkSession();
+  }, []);
 
   return (
     <AppContext.Provider value={{ state, dispatch }}>

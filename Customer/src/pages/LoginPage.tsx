@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Eye, EyeOff, Smartphone, Mail } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import Button from '../components/UI/Button';
 import OTPLogin from '../components/Auth/OTPLogin';
 import ForgotPassword from '../components/Auth/ForgotPassword';
+import { api } from '../services/api';
 
 export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -23,7 +24,7 @@ export default function LoginPage() {
 
   const redirectTo = new URLSearchParams(location.search).get('redirect') || '/';
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Simple validation
@@ -37,28 +38,28 @@ export default function LoginPage() {
       return;
     }
 
-    // Demo user credentials for testing
-    const isDemoUser = formData.email === 'demo@srfoodkraft.com' && formData.password === 'demo123';
-
-    if (isDemoUser) {
-      // Login with demo user data
-      dispatch({ type: 'DEMO_LOGIN' });
-      navigate(redirectTo);
-      return;
+    try {
+      if (isLogin) {
+        // Login
+        const { user, token } = await api.login(formData.email, formData.password);
+        localStorage.setItem('token', token);
+        dispatch({ type: 'LOGIN', payload: user });
+        navigate(redirectTo);
+      } else {
+        // Register
+        const { user, token } = await api.register({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          phone: formData.phone
+        });
+        localStorage.setItem('token', token);
+        dispatch({ type: 'LOGIN', payload: user });
+        navigate(redirectTo);
+      }
+    } catch (error: any) {
+      alert(error.message || 'Authentication failed');
     }
-
-    // Regular user authentication - in real app, this would call an API
-    const user = {
-      id: Date.now().toString(),
-      name: formData.name || (isLogin ? formData.email.split('@')[0] : ''),
-      email: formData.email,
-      phone: formData.phone || '',
-      addresses: [],
-      favorites: [],
-    };
-
-    dispatch({ type: 'LOGIN', payload: user });
-    navigate(redirectTo);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -136,8 +137,8 @@ export default function LoginPage() {
                 <button
                   onClick={() => setAuthMode('email')}
                   className={`flex items-center justify-center px-4 py-2 border rounded-md text-sm font-medium transition-colors ${authMode === 'email'
-                      ? 'border-gold bg-gold/10 text-gold'
-                      : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                    ? 'border-gold bg-gold/10 text-gold'
+                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                     }`}
                 >
                   <Mail className="h-4 w-4 mr-2" />
@@ -146,8 +147,8 @@ export default function LoginPage() {
                 <button
                   onClick={() => setAuthMode('otp')}
                   className={`flex items-center justify-center px-4 py-2 border rounded-md text-sm font-medium transition-colors ${authMode === 'otp'
-                      ? 'border-gold bg-gold/10 text-gold'
-                      : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                    ? 'border-gold bg-gold/10 text-gold'
+                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
                     }`}
                 >
                   <Smartphone className="h-4 w-4 mr-2" />

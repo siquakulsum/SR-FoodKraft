@@ -77,7 +77,7 @@ function AddInquiryModal() {
     quote_amount: 0,
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const inquiryData = {
@@ -95,9 +95,14 @@ function AddInquiryModal() {
       quote_amount: formData.quote_amount || undefined,
     };
 
-    addInquiry(inquiryData);
-    setIsOpen(false);
-    resetForm();
+    try {
+      await addInquiry(inquiryData);
+      setIsOpen(false);
+      resetForm();
+    } catch (error) {
+      console.error('Failed to add inquiry:', error);
+      alert('Failed to add inquiry. Please try again.');
+    }
   };
 
   const resetForm = () => {
@@ -311,7 +316,7 @@ function AddInquiryModal() {
 
 // Inquiry Detail Modal Component
 function InquiryDetailModal({ inquiry }: { inquiry: Inquiry }) {
-  const { updateInquiryStatus, updateInquiryPriority, updateInquiryNotes, updateInquiryQuote, assignInquiry } = useInquiryStore();
+  const { updateInquiry } = useInquiryStore();
   const [isOpen, setIsOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState({
@@ -322,17 +327,20 @@ function InquiryDetailModal({ inquiry }: { inquiry: Inquiry }) {
     assigned_to: inquiry.assigned_to || '',
   });
 
-  const handleSave = () => {
-    updateInquiryStatus(inquiry.id, formData.status);
-    updateInquiryPriority(inquiry.id, formData.priority);
-    updateInquiryNotes(inquiry.id, formData.notes);
-    if (formData.quote_amount > 0) {
-      updateInquiryQuote(inquiry.id, formData.quote_amount);
+  const handleSave = async () => {
+    try {
+      await updateInquiry(inquiry.id, {
+        status: formData.status,
+        priority: formData.priority,
+        notes: formData.notes,
+        quote_amount: formData.quote_amount,
+        assigned_to: formData.assigned_to,
+      });
+      setEditMode(false);
+    } catch (error) {
+      console.error('Failed to update inquiry:', error);
+      alert('Failed to update inquiry');
     }
-    if (formData.assigned_to) {
-      assignInquiry(inquiry.id, formData.assigned_to);
-    }
-    setEditMode(false);
   };
 
   const handleInputChange = (field: string, value: string | number) => {
@@ -635,7 +643,19 @@ function InquiryDetailModal({ inquiry }: { inquiry: Inquiry }) {
 }
 
 export default function Inquiries() {
-  const { inquiries, updateInquiryStatus, updateInquiryPriority, deleteInquiry } = useInquiryStore();
+  const {
+    inquiries,
+    stats,
+    pagination,
+    isLoading,
+    error,
+    fetchInquiries,
+    fetchStats,
+    updateInquiryStatus,
+    updateInquiryPriority,
+    deleteInquiry
+  } = useInquiryStore();
+
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -648,81 +668,56 @@ export default function Inquiries() {
   const [editingPriority, setEditingPriority] = useState<string | null>(null);
   const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null);
 
+  // Initial fetch stats
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  // Fetch inquiries on params change
+  useEffect(() => {
+    // Debounce search
+    const timer = setTimeout(() => {
+      fetchInquiries({
+        page: currentPage,
+        limit: itemsPerPage,
+        search: searchTerm,
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        priority: priorityFilter === 'all' ? undefined : priorityFilter,
+        sortBy,
+        sortOrder,
+      });
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [
+    fetchInquiries,
+    currentPage,
+    itemsPerPage,
+    searchTerm,
+    statusFilter,
+    priorityFilter,
+    sortBy,
+    sortOrder
+  ]);
+
   // Handle URL parameter to open specific inquiry
   useEffect(() => {
     const openInquiryId = searchParams.get('openInquiry');
     if (openInquiryId) {
+      // Since we might not have loaded this inquiry yet (pagination), 
+      // we might need to fetch it individually if not in list.
+      // For now, assuming if it's in the list we open it.
       const inquiry = inquiries.find(i => i.id === openInquiryId);
       if (inquiry) {
         setSelectedInquiry(inquiry);
-        // Remove the parameter from URL after opening
         setSearchParams({});
       }
     }
   }, [searchParams, inquiries, setSearchParams]);
 
-  const filteredInquiries = useMemo(() => {
-    let filtered = inquiries.filter((inquiry) => {
-      const matchesSearch =
-        inquiry.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        inquiry.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        inquiry.phone.includes(searchTerm);
-
-      const matchesStatus = statusFilter === 'all' || inquiry.status === statusFilter;
-      const matchesPriority = priorityFilter === 'all' || inquiry.priority === priorityFilter;
-
-      return matchesSearch && matchesStatus && matchesPriority;
-    });
-
-    // Sort inquiries
-    filtered.sort((a, b) => {
-      let aValue: any, bValue: any;
-
-      switch (sortBy) {
-        case 'created_at':
-          aValue = new Date(a.created_at).getTime();
-          bValue = new Date(b.created_at).getTime();
-          break;
-        case 'full_name':
-          aValue = a.full_name.toLowerCase();
-          bValue = b.full_name.toLowerCase();
-          break;
-        case 'status':
-          aValue = a.status;
-          bValue = b.status;
-          break;
-        case 'priority':
-          const priorityOrder = { high: 3, medium: 2, low: 1 };
-          aValue = priorityOrder[a.priority];
-          bValue = priorityOrder[b.priority];
-          break;
-        default:
-          aValue = new Date(a.created_at).getTime();
-          bValue = new Date(b.created_at).getTime();
-      }
-
-      if (sortOrder === 'asc') {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-      } else {
-        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-      }
-    });
-
-    return filtered;
-  }, [inquiries, searchTerm, statusFilter, priorityFilter, sortBy, sortOrder]);
-
-  const totalPages = Math.ceil(filteredInquiries.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedInquiries = filteredInquiries.slice(startIndex, endIndex);
-
   const handleStatusChange = (id: string, status: Inquiry['status']) => {
     updateInquiryStatus(id, status);
   };
-
-  // const handlePriorityChange = (id: string, priority: Inquiry['priority']) => {
-  //   updateInquiryPriority(id, priority);
-  // };
 
   const handleInlineStatusEdit = (inquiryId: string) => {
     setEditingStatus(inquiryId);
@@ -761,22 +756,27 @@ export default function Inquiries() {
 
   const handleItemsPerPageChange = (newItemsPerPage: number) => {
     setItemsPerPage(newItemsPerPage);
-    setCurrentPage(1); // Reset to first page when changing items per page
+    setCurrentPage(1);
   };
 
-  // Statistics
-  const stats = useMemo(() => {
-    const total = inquiries.length;
-    const newCount = inquiries.filter(i => i.status === 'new').length;
-    const contactedCount = inquiries.filter(i => i.status === 'contacted').length;
-    const quotedCount = inquiries.filter(i => i.status === 'quoted').length;
-    const convertedCount = inquiries.filter(i => i.status === 'converted').length;
-    const totalQuoteValue = inquiries
-      .filter(i => i.quote_amount)
-      .reduce((sum, i) => sum + (i.quote_amount || 0), 0);
+  const handleExport = async () => {
+    try {
+      const { api } = await import('@/services/api');
+      await api.exportInquiries({
+        search: searchTerm,
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        priority: priorityFilter === 'all' ? undefined : priorityFilter,
+        sortBy,
+        sortOrder,
+      });
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Failed to export inquiries');
+    }
+  };
 
-    return { total, newCount, contactedCount, quotedCount, convertedCount, totalQuoteValue };
-  }, [inquiries]);
+  // Used for rendering
+  const paginatedInquiries = inquiries;
 
   return (
     <div className="space-y-6">
@@ -797,7 +797,7 @@ export default function Inquiries() {
               </div>
               <div>
                 <p className="text-sm text-slate-600 dark:text-slate-400">Total Inquiries</p>
-                <p className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">{stats.total}</p>
+                <p className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">{stats.totalInquiries}</p>
               </div>
             </div>
           </CardContent>
@@ -811,7 +811,7 @@ export default function Inquiries() {
               </div>
               <div>
                 <p className="text-sm text-slate-600 dark:text-slate-400">New</p>
-                <p className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">{stats.newCount}</p>
+                <p className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">{stats.newInquiries}</p>
               </div>
             </div>
           </CardContent>
@@ -825,7 +825,7 @@ export default function Inquiries() {
               </div>
               <div>
                 <p className="text-sm text-slate-600 dark:text-slate-400">Quoted</p>
-                <p className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">{stats.quotedCount}</p>
+                <p className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">{stats.quotedInquiries}</p>
               </div>
             </div>
           </CardContent>
@@ -839,7 +839,7 @@ export default function Inquiries() {
               </div>
               <div>
                 <p className="text-sm text-slate-600 dark:text-slate-400">Converted</p>
-                <p className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">{stats.convertedCount}</p>
+                <p className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">{stats.convertedInquiries}</p>
               </div>
             </div>
           </CardContent>
@@ -866,7 +866,7 @@ export default function Inquiries() {
             <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Inquiry Management</h3>
             <div className="flex flex-col sm:flex-row gap-2">
               <AddInquiryModal />
-              <Button variant="outline" size="sm" className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="flex items-center gap-2" onClick={handleExport}>
                 <Download className="w-4 h-4" />
                 <span className="hidden sm:inline">Export</span>
               </Button>
@@ -938,156 +938,360 @@ export default function Inquiries() {
           </div>
         </div>
 
+        {/* Loading State */}
+        {isLoading && (
+          <div className="p-8 text-center text-slate-500">
+            Loading inquiries...
+          </div>
+        )}
+
+        {/* Error State */}
+        {!isLoading && error && (
+          <div className="p-8 text-center text-red-500">
+            {error}
+          </div>
+        )}
+
         {/* Desktop Table View */}
-        <div className="hidden lg:block overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-slate-50 dark:bg-slate-900">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Customer
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Event Details
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Status
-                  <span className="text-xs text-blue-500 ml-1">(Click to edit)</span>
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Priority
-                  <span className="text-xs text-blue-500 ml-1">(Click to edit)</span>
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Quote
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {paginatedInquiries.map((inquiry) => {
+        {!isLoading && !error && (
+          <div className="hidden lg:block overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-slate-50 dark:bg-slate-900">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    Customer
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    Event Details
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    Status
+                    <span className="text-xs text-blue-500 ml-1">(Click to edit)</span>
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    Priority
+                    <span className="text-xs text-blue-500 ml-1">(Click to edit)</span>
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    Quote
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {paginatedInquiries.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-8 text-center text-slate-500">
+                      No inquiries found matching your criteria.
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedInquiries.map((inquiry) => {
+                    const statusConfigItem = statusConfig[inquiry.status];
+                    const priorityConfigItem = priorityConfig[inquiry.priority];
+                    const StatusIcon = statusConfigItem.icon;
+
+                    return (
+                      <tr key={inquiry.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-gradient-to-r from-gold-500 to-gold-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                              {inquiry.full_name.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="font-medium text-slate-900 dark:text-white">{inquiry.full_name}</div>
+                              <div className="text-sm text-slate-500">{inquiry.email}</div>
+                              <div className="text-sm text-slate-500">{inquiry.phone}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm">
+                            <div className="font-medium text-slate-900 dark:text-white capitalize">
+                              {inquiry.event_type || 'Not specified'}
+                            </div>
+                            <div className="text-slate-500">
+                              {inquiry.guest_count ? `${inquiry.guest_count} guests` : 'Guest count not specified'}
+                            </div>
+                            <div className="text-slate-500">
+                              {inquiry.event_date ? new Date(inquiry.event_date).toLocaleDateString() : 'Date not specified'}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {editingStatus === inquiry.id ? (
+                            <div className="flex items-center gap-2">
+                              <Select
+                                defaultValue={inquiry.status}
+                                onValueChange={(value: Inquiry['status']) => handleInlineStatusSave(inquiry.id, value)}
+                              >
+                                <SelectTrigger className="w-32">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="new">New</SelectItem>
+                                  <SelectItem value="contacted">Contacted</SelectItem>
+                                  <SelectItem value="quoted">Quoted</SelectItem>
+                                  <SelectItem value="converted">Converted</SelectItem>
+                                  <SelectItem value="closed">Closed</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleInlineCancel}
+                                className="h-8 w-8 p-0"
+                              >
+                                <XCircle className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div
+                              className="flex items-center gap-2 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 p-1 rounded transition-colors"
+                              onClick={() => handleInlineStatusEdit(inquiry.id)}
+                              title="Click to edit status"
+                            >
+                              <StatusIcon className="w-4 h-4" />
+                              <Badge className={statusConfigItem.color}>
+                                {statusConfigItem.label}
+                              </Badge>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {editingPriority === inquiry.id ? (
+                            <div className="flex items-center gap-2">
+                              <Select
+                                defaultValue={inquiry.priority}
+                                onValueChange={(value: Inquiry['priority']) => handleInlinePrioritySave(inquiry.id, value)}
+                              >
+                                <SelectTrigger className="w-24">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="low">Low</SelectItem>
+                                  <SelectItem value="medium">Medium</SelectItem>
+                                  <SelectItem value="high">High</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleInlineCancel}
+                                className="h-8 w-8 p-0"
+                              >
+                                <XCircle className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div
+                              className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 p-1 rounded transition-colors"
+                              onClick={() => handleInlinePriorityEdit(inquiry.id)}
+                              title="Click to edit priority"
+                            >
+                              <Badge className={priorityConfigItem.color}>
+                                {priorityConfigItem.label}
+                              </Badge>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-slate-900 dark:text-white">
+                            {inquiry.quote_amount ? `₹${inquiry.quote_amount.toLocaleString()}` : 'Not quoted'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-slate-400">
+                          {new Date(inquiry.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <InquiryDetailModal inquiry={inquiry} />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                if (inquiry.status === 'new') {
+                                  handleStatusChange(inquiry.id, 'contacted');
+                                } else if (inquiry.status === 'contacted') {
+                                  handleStatusChange(inquiry.id, 'quoted');
+                                } else if (inquiry.status === 'quoted') {
+                                  handleStatusChange(inquiry.id, 'converted');
+                                }
+                              }}
+                              disabled={inquiry.status === 'converted' || inquiry.status === 'closed'}
+                              className="text-green-600 hover:text-green-800"
+                              title="Quick status update"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDelete(inquiry.id, inquiry.full_name)}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              <XCircle className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Mobile Card View */}
+        {!isLoading && !error && (
+          <div className="lg:hidden space-y-4 p-4">
+            {paginatedInquiries.length === 0 ? (
+              <div className="text-center text-slate-500 py-8">
+                No inquiries found.
+              </div>
+            ) : (
+              paginatedInquiries.map((inquiry) => {
                 const statusConfigItem = statusConfig[inquiry.status];
                 const priorityConfigItem = priorityConfig[inquiry.priority];
                 const StatusIcon = statusConfigItem.icon;
 
                 return (
-                  <tr key={inquiry.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                  <Card key={inquiry.id} className="p-4">
+                    <div className="space-y-4">
+                      {/* Customer Info */}
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-gradient-to-r from-gold-500 to-gold-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                        <div className="w-10 h-10 bg-gradient-to-r from-gold-500 to-gold-600 rounded-full flex items-center justify-center text-white font-bold">
                           {inquiry.full_name.charAt(0).toUpperCase()}
                         </div>
-                        <div>
+                        <div className="flex-1">
                           <div className="font-medium text-slate-900 dark:text-white">{inquiry.full_name}</div>
                           <div className="text-sm text-slate-500">{inquiry.email}</div>
                           <div className="text-sm text-slate-500">{inquiry.phone}</div>
                         </div>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm">
-                        <div className="font-medium text-slate-900 dark:text-white capitalize">
-                          {inquiry.event_type || 'Not specified'}
+
+                      {/* Event Details */}
+                      <div className="space-y-2">
+                        <div className="text-sm">
+                          <span className="font-medium text-slate-700 dark:text-slate-300">Event:</span>
+                          <span className="ml-2 capitalize">{inquiry.event_type || 'Not specified'}</span>
                         </div>
-                        <div className="text-slate-500">
-                          {inquiry.guest_count ? `${inquiry.guest_count} guests` : 'Guest count not specified'}
+                        <div className="text-sm">
+                          <span className="font-medium text-slate-700 dark:text-slate-300">Guests:</span>
+                          <span className="ml-2">{inquiry.guest_count ? `${inquiry.guest_count} guests` : 'Not specified'}</span>
                         </div>
-                        <div className="text-slate-500">
-                          {inquiry.event_date ? new Date(inquiry.event_date).toLocaleDateString() : 'Date not specified'}
+                        <div className="text-sm">
+                          <span className="font-medium text-slate-700 dark:text-slate-300">Date:</span>
+                          <span className="ml-2">{inquiry.event_date ? new Date(inquiry.event_date).toLocaleDateString() : 'Not specified'}</span>
                         </div>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {editingStatus === inquiry.id ? (
-                        <div className="flex items-center gap-2">
-                          <Select
-                            defaultValue={inquiry.status}
-                            onValueChange={(value: Inquiry['status']) => handleInlineStatusSave(inquiry.id, value)}
-                          >
-                            <SelectTrigger className="w-32">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="new">New</SelectItem>
-                              <SelectItem value="contacted">Contacted</SelectItem>
-                              <SelectItem value="quoted">Quoted</SelectItem>
-                              <SelectItem value="converted">Converted</SelectItem>
-                              <SelectItem value="closed">Closed</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleInlineCancel}
-                            className="h-8 w-8 p-0"
-                          >
-                            <XCircle className="w-4 h-4" />
-                          </Button>
+
+                      {/* Status and Priority */}
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <div className="flex-1">
+                          <div className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Status</div>
+                          {editingStatus === inquiry.id ? (
+                            <div className="flex items-center gap-2">
+                              <Select
+                                defaultValue={inquiry.status}
+                                onValueChange={(value: Inquiry['status']) => handleInlineStatusSave(inquiry.id, value)}
+                              >
+                                <SelectTrigger className="w-full">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="new">New</SelectItem>
+                                  <SelectItem value="contacted">Contacted</SelectItem>
+                                  <SelectItem value="quoted">Quoted</SelectItem>
+                                  <SelectItem value="converted">Converted</SelectItem>
+                                  <SelectItem value="closed">Closed</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleInlineCancel}
+                                className="h-8 w-8 p-0"
+                              >
+                                <XCircle className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div
+                              className="flex items-center gap-2 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 p-2 rounded transition-colors"
+                              onClick={() => handleInlineStatusEdit(inquiry.id)}
+                            >
+                              <StatusIcon className="w-4 h-4" />
+                              <Badge className={statusConfigItem.color}>
+                                {statusConfigItem.label}
+                              </Badge>
+                            </div>
+                          )}
                         </div>
-                      ) : (
-                        <div
-                          className="flex items-center gap-2 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 p-1 rounded transition-colors"
-                          onClick={() => handleInlineStatusEdit(inquiry.id)}
-                          title="Click to edit status"
-                        >
-                          <StatusIcon className="w-4 h-4" />
-                          <Badge className={statusConfigItem.color}>
-                            {statusConfigItem.label}
-                          </Badge>
+
+                        <div className="flex-1">
+                          <div className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Priority</div>
+                          {editingPriority === inquiry.id ? (
+                            <div className="flex items-center gap-2">
+                              <Select
+                                defaultValue={inquiry.priority}
+                                onValueChange={(value: Inquiry['priority']) => handleInlinePrioritySave(inquiry.id, value)}
+                              >
+                                <SelectTrigger className="w-full">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="low">Low</SelectItem>
+                                  <SelectItem value="medium">Medium</SelectItem>
+                                  <SelectItem value="high">High</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleInlineCancel}
+                                className="h-8 w-8 p-0"
+                              >
+                                <XCircle className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div
+                              className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 p-2 rounded transition-colors"
+                              onClick={() => handleInlinePriorityEdit(inquiry.id)}
+                            >
+                              <Badge className={priorityConfigItem.color}>
+                                {priorityConfigItem.label}
+                              </Badge>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {editingPriority === inquiry.id ? (
-                        <div className="flex items-center gap-2">
-                          <Select
-                            defaultValue={inquiry.priority}
-                            onValueChange={(value: Inquiry['priority']) => handleInlinePrioritySave(inquiry.id, value)}
-                          >
-                            <SelectTrigger className="w-24">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="low">Low</SelectItem>
-                              <SelectItem value="medium">Medium</SelectItem>
-                              <SelectItem value="high">High</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleInlineCancel}
-                            className="h-8 w-8 p-0"
-                          >
-                            <XCircle className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <div
-                          className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 p-1 rounded transition-colors"
-                          onClick={() => handleInlinePriorityEdit(inquiry.id)}
-                          title="Click to edit priority"
-                        >
-                          <Badge className={priorityConfigItem.color}>
-                            {priorityConfigItem.label}
-                          </Badge>
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-slate-900 dark:text-white">
-                        {inquiry.quote_amount ? `₹${inquiry.quote_amount.toLocaleString()}` : 'Not quoted'}
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-slate-600 dark:text-slate-400">
-                      {new Date(inquiry.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
+
+                      {/* Quote and Date */}
+                      <div className="flex justify-between items-center pt-2 border-t border-slate-200 dark:border-slate-700">
+                        <div>
+                          <div className="text-xs font-medium text-slate-600 dark:text-slate-400">Quote</div>
+                          <div className="text-sm font-medium text-slate-900 dark:text-white">
+                            {inquiry.quote_amount ? `₹${inquiry.quote_amount.toLocaleString()}` : 'Not quoted'}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-xs font-medium text-slate-600 dark:text-slate-400">Date</div>
+                          <div className="text-sm text-slate-600 dark:text-slate-400">
+                            {new Date(inquiry.created_at).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex gap-2 pt-2">
                         <InquiryDetailModal inquiry={inquiry} />
                         <Button
                           variant="outline"
@@ -1102,10 +1306,10 @@ export default function Inquiries() {
                             }
                           }}
                           disabled={inquiry.status === 'converted' || inquiry.status === 'closed'}
-                          className="text-green-600 hover:text-green-800"
-                          title="Quick status update"
+                          className="flex-1 text-green-600 hover:text-green-800"
                         >
-                          <CheckCircle className="w-4 h-4" />
+                          <CheckCircle className="w-4 h-4 mr-1" />
+                          <span className="hidden sm:inline">Quick Update</span>
                         </Button>
                         <Button
                           variant="outline"
@@ -1116,191 +1320,20 @@ export default function Inquiries() {
                           <XCircle className="w-4 h-4" />
                         </Button>
                       </div>
-                    </td>
-                  </tr>
+                    </div>
+                  </Card>
                 );
-              })}
-            </tbody>
-          </table>
-        </div>
+              })
+            )}
+          </div>
+        )}
 
-        {/* Mobile Card View */}
-        <div className="lg:hidden space-y-4 p-4">
-          {paginatedInquiries.map((inquiry) => {
-            const statusConfigItem = statusConfig[inquiry.status];
-            const priorityConfigItem = priorityConfig[inquiry.priority];
-            const StatusIcon = statusConfigItem.icon;
-
-            return (
-              <Card key={inquiry.id} className="p-4">
-                <div className="space-y-4">
-                  {/* Customer Info */}
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-gold-500 to-gold-600 rounded-full flex items-center justify-center text-white font-bold">
-                      {inquiry.full_name.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-medium text-slate-900 dark:text-white">{inquiry.full_name}</div>
-                      <div className="text-sm text-slate-500">{inquiry.email}</div>
-                      <div className="text-sm text-slate-500">{inquiry.phone}</div>
-                    </div>
-                  </div>
-
-                  {/* Event Details */}
-                  <div className="space-y-2">
-                    <div className="text-sm">
-                      <span className="font-medium text-slate-700 dark:text-slate-300">Event:</span>
-                      <span className="ml-2 capitalize">{inquiry.event_type || 'Not specified'}</span>
-                    </div>
-                    <div className="text-sm">
-                      <span className="font-medium text-slate-700 dark:text-slate-300">Guests:</span>
-                      <span className="ml-2">{inquiry.guest_count ? `${inquiry.guest_count} guests` : 'Not specified'}</span>
-                    </div>
-                    <div className="text-sm">
-                      <span className="font-medium text-slate-700 dark:text-slate-300">Date:</span>
-                      <span className="ml-2">{inquiry.event_date ? new Date(inquiry.event_date).toLocaleDateString() : 'Not specified'}</span>
-                    </div>
-                  </div>
-
-                  {/* Status and Priority */}
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <div className="flex-1">
-                      <div className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Status</div>
-                      {editingStatus === inquiry.id ? (
-                        <div className="flex items-center gap-2">
-                          <Select
-                            defaultValue={inquiry.status}
-                            onValueChange={(value: Inquiry['status']) => handleInlineStatusSave(inquiry.id, value)}
-                          >
-                            <SelectTrigger className="w-full">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="new">New</SelectItem>
-                              <SelectItem value="contacted">Contacted</SelectItem>
-                              <SelectItem value="quoted">Quoted</SelectItem>
-                              <SelectItem value="converted">Converted</SelectItem>
-                              <SelectItem value="closed">Closed</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleInlineCancel}
-                            className="h-8 w-8 p-0"
-                          >
-                            <XCircle className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <div
-                          className="flex items-center gap-2 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 p-2 rounded transition-colors"
-                          onClick={() => handleInlineStatusEdit(inquiry.id)}
-                        >
-                          <StatusIcon className="w-4 h-4" />
-                          <Badge className={statusConfigItem.color}>
-                            {statusConfigItem.label}
-                          </Badge>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex-1">
-                      <div className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Priority</div>
-                      {editingPriority === inquiry.id ? (
-                        <div className="flex items-center gap-2">
-                          <Select
-                            defaultValue={inquiry.priority}
-                            onValueChange={(value: Inquiry['priority']) => handleInlinePrioritySave(inquiry.id, value)}
-                          >
-                            <SelectTrigger className="w-full">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="low">Low</SelectItem>
-                              <SelectItem value="medium">Medium</SelectItem>
-                              <SelectItem value="high">High</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleInlineCancel}
-                            className="h-8 w-8 p-0"
-                          >
-                            <XCircle className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <div
-                          className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 p-2 rounded transition-colors"
-                          onClick={() => handleInlinePriorityEdit(inquiry.id)}
-                        >
-                          <Badge className={priorityConfigItem.color}>
-                            {priorityConfigItem.label}
-                          </Badge>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Quote and Date */}
-                  <div className="flex justify-between items-center pt-2 border-t border-slate-200 dark:border-slate-700">
-                    <div>
-                      <div className="text-xs font-medium text-slate-600 dark:text-slate-400">Quote</div>
-                      <div className="text-sm font-medium text-slate-900 dark:text-white">
-                        {inquiry.quote_amount ? `₹${inquiry.quote_amount.toLocaleString()}` : 'Not quoted'}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xs font-medium text-slate-600 dark:text-slate-400">Date</div>
-                      <div className="text-sm text-slate-600 dark:text-slate-400">
-                        {new Date(inquiry.created_at).toLocaleDateString()}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex gap-2 pt-2">
-                    <InquiryDetailModal inquiry={inquiry} />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        if (inquiry.status === 'new') {
-                          handleStatusChange(inquiry.id, 'contacted');
-                        } else if (inquiry.status === 'contacted') {
-                          handleStatusChange(inquiry.id, 'quoted');
-                        } else if (inquiry.status === 'quoted') {
-                          handleStatusChange(inquiry.id, 'converted');
-                        }
-                      }}
-                      disabled={inquiry.status === 'converted' || inquiry.status === 'closed'}
-                      className="flex-1 text-green-600 hover:text-green-800"
-                    >
-                      <CheckCircle className="w-4 h-4 mr-1" />
-                      <span className="hidden sm:inline">Quick Update</span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDelete(inquiry.id, inquiry.full_name)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      <XCircle className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-
-        {filteredInquiries.length > 0 && (
+        {/* Pagination - updated to use server side stats */}
+        {!isLoading && !error && pagination.total > 0 && (
           <Pagination
             currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={filteredInquiries.length}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.total}
             itemsPerPage={itemsPerPage}
             onPageChange={handlePageChange}
             onItemsPerPageChange={handleItemsPerPageChange}

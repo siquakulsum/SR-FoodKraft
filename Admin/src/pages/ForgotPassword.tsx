@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { api } from '@/services/api';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,14 +20,22 @@ export default function ForgotPassword() {
     e.preventDefault();
     setLoading(true);
 
-    setTimeout(() => {
+    try {
+      await api.forgotPassword(email);
       setSent(true);
-      setLoading(false);
       toast({
         title: 'Reset link sent',
         description: 'Check your email for password reset instructions',
       });
-    }, 1000);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to send reset link',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (sent) {

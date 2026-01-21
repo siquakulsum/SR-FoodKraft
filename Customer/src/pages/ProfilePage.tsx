@@ -1,16 +1,16 @@
-import React, { useState } from 'react';
-import { User, Mail, Phone, MapPin, Edit, Save, Plus, Trash2, Star, Calendar, Lock, Eye, EyeOff } from 'lucide-react';
+import { useState } from 'react';
+import { User, Mail, Phone, MapPin, Edit, Save, Plus, Trash2, Star, Lock, Eye, EyeOff } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import Button from '../components/UI/Button';
 import Modal from '../components/UI/Modal';
 import StarRating from '../components/UI/StarRating';
 import { Address } from '../types';
 import { lookupPincode, validatePincode } from '../utils/pincodeLookup';
-import { useAuth } from '../hooks/useAuth';
+import { api } from '../services/api';
 
 export default function ProfilePage() {
   const { state, dispatch } = useApp();
-  const { updatePassword } = useAuth();
+  // const { updatePassword } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -56,16 +56,19 @@ export default function ProfilePage() {
     );
   }
 
-  const handleSave = () => {
-    const updatedUser = {
-      ...state.user!,
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-    };
+  const handleSave = async () => {
+    try {
+      const updatedUser = await api.updateProfile({
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone
+      });
 
-    dispatch({ type: 'LOGIN', payload: updatedUser });
-    setIsEditing(false);
+      dispatch({ type: 'LOGIN', payload: updatedUser });
+      setIsEditing(false);
+    } catch (error: any) {
+      alert(error.message || 'Failed to update profile');
+    }
   };
 
   const handleCancel = () => {
@@ -136,6 +139,9 @@ export default function ProfilePage() {
 
     const address: Address = {
       id: editingAddress?.id || Date.now().toString(),
+      name: state.user?.name || 'Home',
+      address: `${addressData.doorNo}, ${addressData.street}, ${addressData.area}, ${addressData.city}, ${addressData.state}`,
+      phone: state.user?.phone || '',
       ...addressData,
     };
 
@@ -172,7 +178,7 @@ export default function ProfilePage() {
     }
 
     try {
-      await updatePassword(passwordData.newPassword);
+      await api.changePassword(passwordData.currentPassword, passwordData.newPassword);
       alert('Password updated successfully');
       setShowPasswordModal(false);
       setPasswordData({
@@ -313,7 +319,7 @@ export default function ProfilePage() {
                       // Find the menu item name from orders
                       const menuItemName = state.orders
                         .flatMap(order => order.items)
-                        .find(item => item.id === rating.menuItemId)?.name || 'Menu Item';
+                        .find(item => item.id === rating.menuItemId)?.menuItem.name || 'Menu Item';
 
                       return (
                         <div key={rating.id} className="border border-gray-200 rounded-lg p-4">

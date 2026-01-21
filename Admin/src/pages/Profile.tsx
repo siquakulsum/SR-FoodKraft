@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import { api } from '@/services/api';
 import { useAuthStore } from '@/store/auth-store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -39,7 +40,7 @@ export default function Profile() {
     });
   };
 
-  const handleChangePassword = (e: React.FormEvent) => {
+  const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       toast({
@@ -49,15 +50,25 @@ export default function Profile() {
       });
       return;
     }
-    toast({
-      title: 'Password changed',
-      description: 'Your password has been changed successfully',
-    });
-    setPasswordData({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-    });
+
+    try {
+      await api.changePassword(passwordData.currentPassword, passwordData.newPassword);
+      toast({
+        title: 'Password changed',
+        description: 'Your password has been changed successfully',
+      });
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to change password',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleImageUpload = (file: File) => {
