@@ -3,15 +3,24 @@ const { Op } = require('sequelize');
 const fs = require('fs');
 const path = require('path');
 
-// Mock Cloud Storage Upload
-// In a real scenario, this would import AWS S3 or similar
+// Upload to local storage
+// In production, replace this with AWS S3, Cloudinary, etc.
 const uploadToCloud = async (file) => {
-    // Simulate upload delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Create uploads directory if it doesn't exist
+    const uploadsDir = path.join(__dirname, '../uploads/avatars');
+    if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+    }
 
-    // For now, we'll just return a local path or a dummy CDN URL
-    // In production, upload `file.buffer` or `file.path` to S3
-    return `https://storage.example.com/avatars/${Date.now()}_${file.originalname}`;
+    // Generate unique filename
+    const filename = `${Date.now()}_${file.originalname}`;
+    const filepath = path.join(uploadsDir, filename);
+
+    // Write file to disk
+    fs.writeFileSync(filepath, file.buffer);
+
+    // Return URL path (relative to server)
+    return `/uploads/avatars/${filename}`;
 };
 
 const getProfile = async (userId) => {
@@ -23,30 +32,35 @@ const getProfile = async (userId) => {
 };
 
 const updateProfile = async (userId, data) => {
-    const { name, email, phone } = data;
-
-    // Check if email or phone is already taken by another user
-    const existingUser = await User.findOne({
-        where: {
-            [Op.or]: [{ email }, { phone }],
-            id: { [Op.ne]: userId }
-        }
-    });
-
-    if (existingUser) {
-        if (existingUser.email === email) throw new Error('Email already in use');
-        if (existingUser.phone === phone) throw new Error('Phone already in use');
-    }
+    const { name, email, phone, avatar_url } = data;
 
     const user = await User.findByPk(userId);
     if (!user) throw new Error('User not found');
 
-    // Logic for OTP verification would go here if email/phone changed
-    // For now, we update directly as per instructions to mock/defer OTP
+    // Only check for duplicates if email or phone is being updated
+    if (email || phone) {
+        const whereConditions = [];
+        if (email) whereConditions.push({ email });
+        if (phone) whereConditions.push({ phone });
 
-    user.name = name;
-    user.email = email;
-    user.phone = phone;
+        const existingUser = await User.findOne({
+            where: {
+                [Op.or]: whereConditions,
+                id: { [Op.ne]: userId }
+            }
+        });
+
+        if (existingUser) {
+            if (existingUser.email === email) throw new Error('Email already in use');
+            if (existingUser.phone === phone) throw new Error('Phone already in use');
+        }
+    }
+
+    // Update only the fields that are provided
+    if (name !== undefined) user.name = name;
+    if (email !== undefined) user.email = email;
+    if (phone !== undefined) user.phone = phone;
+    if (avatar_url !== undefined) user.avatar_url = avatar_url;
 
     await user.save();
 

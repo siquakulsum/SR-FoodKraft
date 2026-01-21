@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MetricsCard from '@/components/MetricsCard';
 import { useOrderStore } from '@/store/order-store';
@@ -44,10 +44,14 @@ const statusConfig = {
 export default function Dashboard() {
   const navigate = useNavigate();
   const orders = useOrderStore((state) => state.orders);
-  const customers = useCustomerStore((state) => state.customers);
+  const { stats, fetchStats: fetchCustomerStats, customers } = useCustomerStore();
   const payments = usePaymentStore((state) => state.payments);
   const menuItems = useMenuStore((state) => state.menuItems);
   const inquiries = useInquiryStore((state) => state.inquiries);
+
+  useEffect(() => {
+    fetchCustomerStats();
+  }, [fetchCustomerStats]);
 
   const totalRevenue = payments
     .filter((p) => p.status === 'completed')
@@ -167,7 +171,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricsCard
           title="Total Customers"
-          value={customers.length}
+          value={stats.totalCustomers}
           icon={Users}
           trend={{ value: '8% from last month', positive: true }}
           onClick={() => navigate('/admin/users')}
@@ -181,7 +185,7 @@ export default function Dashboard() {
         />
         <MetricsCard
           title="Total Revenue"
-          value={`₹${totalRevenue.toLocaleString()}`}
+          value={`₹${stats.totalRevenue > 0 ? stats.totalRevenue.toLocaleString() : totalRevenue.toLocaleString()}`}
           icon={DollarSign}
           trend={{ value: '15% from last month', positive: true }}
           onClick={() => navigate('/admin/payments')}

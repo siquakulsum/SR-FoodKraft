@@ -25,17 +25,28 @@ const register = asyncHandler(async (req, res) => {
 });
 
 const login = asyncHandler(async (req, res) => {
+    console.log('=== LOGIN REQUEST ===');
+    console.log('Body:', req.body);
+
     const { error } = authValidator.loginSchema.validate(req.body);
     if (error) {
+        console.log('Validation error:', error.details[0].message);
         return sendResponse(res, 400, false, error.details[0].message);
     }
 
     const { email, phone, password } = req.body;
     // Support email or phone in one field or separate
     const identifier = email || phone;
+    console.log('Identifier:', identifier);
 
-    const result = await authService.login(identifier, password);
-    sendResponse(res, 200, true, 'Login successful', result);
+    try {
+        const result = await authService.login(identifier, password);
+        console.log('Login successful');
+        sendResponse(res, 200, true, 'Login successful', result);
+    } catch (err) {
+        console.error('Login service error:', err.message);
+        throw err; // Re-throw to be caught by asyncHandler
+    }
 });
 
 const forgotPassword = asyncHandler(async (req, res) => {

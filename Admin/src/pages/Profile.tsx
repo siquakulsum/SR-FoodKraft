@@ -141,21 +141,29 @@ export default function Profile() {
 
     setIsUploading(true);
     try {
-      // In a real app, you would upload to a cloud service like AWS S3, Cloudinary, etc.
-      // For now, we'll simulate the upload
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Convert base64 to Blob
+      const response = await fetch(previewImage);
+      const blob = await response.blob();
 
-      updateProfile({ ...formData, avatar_url: previewImage });
+      // Create File object from Blob
+      const file = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
+
+      // Upload to backend
+      const result = await api.uploadAvatar(file);
+
+      // Update local state with the returned avatar URL
+      await updateProfile({ avatar_url: result.avatar_url });
       setPreviewImage(null);
 
       toast({
         title: 'Profile picture updated',
         description: 'Your profile picture has been updated successfully',
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Avatar upload error:', error);
       toast({
         title: 'Upload failed',
-        description: 'Failed to update profile picture. Please try again.',
+        description: error.message || 'Failed to update profile picture. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -163,13 +171,22 @@ export default function Profile() {
     }
   };
 
-  const handleRemoveImage = () => {
-    setPreviewImage(null);
-    updateProfile({ ...formData, avatar_url: '' });
-    toast({
-      title: 'Profile picture removed',
-      description: 'Your profile picture has been removed',
-    });
+  const handleRemoveImage = async () => {
+    try {
+      await api.removeAvatar();
+      setPreviewImage(null);
+      await updateProfile({ avatar_url: '' });
+      toast({
+        title: 'Profile picture removed',
+        description: 'Your profile picture has been removed',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to remove profile picture',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleCancelImage = () => {

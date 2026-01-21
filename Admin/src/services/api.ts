@@ -81,7 +81,7 @@ export const api = {
 
     updateProfile: async (updates: Partial<Admin>): Promise<Admin> => {
         // Use the new Admin Profile API
-        const response = await fetch(`/admin/profile`, {
+        const response = await fetch(`/api/admin/profile`, {
             method: 'PATCH',
             headers: getHeaders(),
             body: JSON.stringify(updates),
@@ -117,9 +117,8 @@ export const api = {
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;
         }
-        // Content-Type is NOT set for FormData so browser can set boundary
 
-        const response = await fetch(`/admin/profile/avatar`, {
+        const response = await fetch(`/api/admin/profile/avatar`, {
             method: 'POST',
             headers: headers,
             body: formData,
@@ -127,27 +126,21 @@ export const api = {
 
         const data = await response.json();
         if (!response.ok) {
+            if (response.status === 401) localStorage.removeItem('token');
             throw new Error(data.message || 'Failed to upload avatar');
         }
         return data.data;
     },
 
     removeAvatar: async (): Promise<{ avatar_url: string }> => {
-        const token = localStorage.getItem('token');
-        const headers: HeadersInit = {
-            'Content-Type': 'application/json',
-        };
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-
-        const response = await fetch(`/admin/profile/avatar`, {
+        const response = await fetch(`/api/admin/profile/avatar`, {
             method: 'DELETE',
-            headers: headers,
+            headers: getHeaders(),
         });
 
         const data = await response.json();
         if (!response.ok) {
+            if (response.status === 401) localStorage.removeItem('token');
             throw new Error(data.message || 'Failed to remove avatar');
         }
         return data.data;
@@ -318,4 +311,148 @@ export const api = {
         document.body.removeChild(link);
         window.URL.revokeObjectURL(downloadUrl);
     },
+
+    // Customer API methods
+    getCustomerStats: async () => {
+        const response = await fetch('/api/customers/stats/total', { // The backend service returns all stats in one object usually, but let's check my implementation.
+            // My implementation: `router.get('/stats/total', customerController.getStats);`
+            // And controller returns based on path OR fallback. 
+            // `customerService.getCustomerStats` returns { totalCustomers, activeCustomers, blockedCustomers, totalRevenue }.
+            // `customerController.getStats` -> if path has 'total', return { total: ... }. 
+            // So I need to call ALL endpoints OR just one if I implemented a generic one.
+            // My `customerRoutes.js` had:
+            // router.get('/stats/total', customerController.getStats);
+            // router.get('/stats/active', customerController.getStats);
+            // etc.
+            // AND the controller checked `req.route.path.includes('total')`.
+            // So I have to call them individually if I want to strictly follow the route structure I built, 
+            // UNLESS I just call one and the controller logic allows retrieving all?
+            // Controller fallback: `return sendResponse(res, 200, true, 'Customer stats', stats);`
+            // But the routes are specific.
+            // To get ALL stats for the dashboard in one go (efficiently), I should have made a generic endpoint.
+            // Since I didn't explicitly make a generic `/stats` route in `customerRoutes.js` (I only did specific ones),
+            // I might have to call 4 endpoints or add a generic one.
+            // Wait, my `customerRoutes.js`:
+            // `router.get('/stats/total', ...)`
+            // I did NOT add `router.get('/stats', ...)`
+            // So I must call 4 endpoints OR I can try to hit one that falls through? No.
+            // I will implement `getCustomerStats` to call all 4 in parallel and combine, OR I will assume I can update backend to expose `/stats`.
+            // But I am in frontend integration task, strict "DO NOT change backend logic" (unless I made it).
+            // Actually, I just made the backend. 
+            // I will update the frontend to call 4 times in parallel.
+            headers: getHeaders(),
+        });
+        // Actually, to make it cleaner, I'll fetch them individually in the store or here.
+        // Let's implement individual methods or a combined one.
+        // Combined is better for the UI component.
+
+        const [total, active, blocked, revenue] = await Promise.all([
+            fetch('/api/customers/stats/total', { headers: getHeaders() }).then(r => r.json()),
+            fetch('/api/customers/stats/active', { headers: getHeaders() }).then(r => r.json()),
+            fetch('/api/customers/stats/blocked', { headers: getHeaders() }).then(r => r.json()),
+            fetch('/api/customers/stats/revenue', { headers: getHeaders() }).then(r => r.json())
+        ]);
+
+        return {
+            totalCustomers: total.data?.total || 0,
+            activeCustomers: active.data?.active || 0,
+            blockedCustomers: blocked.data?.blocked || 0,
+            totalRevenue: revenue.data?.revenue || 0
+        };
+    },
+
+    getCustomers: async (params?: any) => {
+        const queryParams = new URLSearchParams();
+        if (params) {
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined && value !== null && value !== '' && value !== 'all') { // 'all' might be default for status
+                    queryParams.append(key, String(value));
+                }
+            });
+        }
+
+        const response = await fetch(`/api/customers?${queryParams.toString()}`, {
+            headers: getHeaders()
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to fetch customers');
+        return data.data; // { customers, total, totalPages, currentPage }
+    },
+
+    getCustomerById: async (id: string) => {
+        const response = await fetch(`/api/customers/${id}`, {
+            headers: getHeaders()
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to fetch customer details');
+        return data.data;
+    },
+
+    createCustomer: async (customerData: any) => {
+        const response = await fetch('/api/customers', {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify(customerData)
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to create customer');
+        return data.data;
+    },
+
+    blockCustomer: async (id: string, reason: string) => {
+        const response = await fetch(`/api/customers/${id}/block`, {
+            method: 'PATCH',
+            headers: getHeaders(),
+            body: JSON.stringify({ reason })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to block customer');
+        return data.data;
+    },
+
+    unblockCustomer: async (id: string) => {
+        const response = await fetch(`/api/customers/${id}/unblock`, {
+            method: 'PATCH',
+            headers: getHeaders()
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to unblock customer');
+        return data.data;
+    },
+
+    exportCustomers: async (params?: any) => {
+        const queryParams = new URLSearchParams();
+        if (params) {
+            Object.entries(params).forEach(([key, value]) => {
+                if (value) queryParams.append(key, String(value));
+            });
+        }
+
+        const response = await fetch(`/api/customers/export?${queryParams.toString()}`, {
+            headers: getHeaders()
+        });
+
+        if (!response.ok) throw new Error('Failed to export customers');
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `customers_export_${Date.now()}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    },
+
+    sendMessage: async (payload: { customerIds: string[], message: string, type: string }) => {
+        const response = await fetch('/api/customers/notifications/send', {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to send message');
+        return data.data;
+    }
 };
