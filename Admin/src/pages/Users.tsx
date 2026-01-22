@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useCustomerStore } from '@/store/customer-store';
 import { useOrderStore } from '@/store/order-store';
 import { Search, Ban, Check, Eye, MessageSquare, Download, Star, TrendingUp, Clock, DollarSign, Plus, Users as UsersIcon, Send, Mail, Smartphone, Upload, FileText, Eye as PreviewIcon, X } from 'lucide-react';
@@ -219,22 +220,29 @@ function CustomerDetailModal({ customerId, onClose }: { customerId: string; onCl
   );
 }
 
-function SendMessageModal({ customers }: { customers: Customer[] }) {
+function SendMessageModal({ customers, selectedIds, onClose }: { customers: Customer[], selectedIds: string[], onClose: () => void }) {
   const { sendMessage, isLoading } = useCustomerStore();
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [result, setResult] = useState<string | null>(null);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  // Simple implementation for now
   const handleSend = async () => {
     try {
-      // Assume sending to all for now or selected
-      // But we need to select them.
-      // Let's just send to 'All' or show a simple input
-      await sendMessage({ customerIds: customers.map(c => c.id), message, type: 'email' });
+      const idsToSend = selectedIds.length > 0 ? selectedIds : customers.map(c => c.id);
+
+      if (idsToSend.length === 0) {
+        setResult('No customers selected.');
+        return;
+      }
+
+      await sendMessage({ customerIds: idsToSend, message, type: 'email' });
       setResult('Message sent successfully');
-      setTimeout(() => setIsOpen(false), 2000);
+      onClose(); // Clear selection
+      setTimeout(() => {
+        setIsOpen(false);
+        setResult(null);
+        setMessage('');
+      }, 2000);
     } catch (e: any) {
       setResult('Error: ' + e.message);
     }
@@ -245,16 +253,18 @@ function SendMessageModal({ customers }: { customers: Customer[] }) {
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="flex items-center gap-2">
           <MessageSquare className="w-4 h-4" />
-          <span className="hidden sm:inline">Bulk Message</span>
+          <span className="hidden sm:inline">Bulk Message ({selectedIds.length > 0 ? selectedIds.length : 'All'})</span>
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader><DialogTitle>Send Bulk Message</DialogTitle></DialogHeader>
         <div className="space-y-4">
-          <p>Send a message to all {customers.length} filtered customers.</p>
+          <p>Send a message to {selectedIds.length > 0 ? `${selectedIds.length} selected customers` : `all ${customers.length} currently listed customers`}.</p>
           <Textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Type your message..." />
-          {result && <p>{result}</p>}
-          <Button onClick={handleSend} disabled={!message || isLoading}>Send</Button>
+          {result && <p className={result.includes('Error') ? 'text-red-500' : 'text-green-500'}>{result}</p>}
+          <Button onClick={handleSend} disabled={!message || isLoading}>
+            {isLoading ? 'Sending...' : 'Send Message'}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -263,13 +273,17 @@ function SendMessageModal({ customers }: { customers: Customer[] }) {
 
 export default function Users() {
   const { customers, total, totalPages, currentPage, stats, isLoading, fetchCustomers, fetchStats, updateCustomerStatus } = useCustomerStore();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [sortBy, setSortBy] = useState<'name' | 'email' | 'created_at' | 'orders' | 'spending'>('created_at');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'blocked'>('all');
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Initialize state from URL params
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
+  const [itemsPerPage, setItemsPerPage] = useState(Number(searchParams.get('limit')) || 10);
+  const [sortBy, setSortBy] = useState<'name' | 'email' | 'created_at' | 'orders' | 'spending'>((searchParams.get('sortBy') as any) || 'created_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>((searchParams.get('sortOrder') as any) || 'desc');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'blocked'>((searchParams.get('status') as any) || 'all');
 
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([]); // For bulk actions
 
   // Block Modal State
   const [blockModalOpen, setBlockModalOpen] = useState(false);
@@ -279,12 +293,23 @@ export default function Users() {
   // Fetch data on mount and dependencies
   useEffect(() => {
     fetchStats();
-  }, []);
+  }, [fetchStats]);
 
+  // Sync state to URL and fetch customers
   useEffect(() => {
+    const params = new URLSearchParams();
+    if (searchTerm) params.set('search', searchTerm);
+    if (statusFilter !== 'all') params.set('status', statusFilter);
+    params.set('sortBy', sortBy);
+    params.set('sortOrder', sortOrder);
+    params.set('limit', itemsPerPage.toString());
+    params.set('page', currentPage.toString()); // Note: currentPage is in store, might need local ref or sync BACK to store if URL changes
+
+    setSearchParams(params);
+
     const delay = setTimeout(() => {
       fetchCustomers({
-        page: currentPage,
+        page: currentPage, // store should probably accept page from argument to update itself? Yes.
         limit: itemsPerPage,
         search: searchTerm,
         status: statusFilter,
@@ -293,7 +318,7 @@ export default function Users() {
       });
     }, 300); // 300ms debounce
     return () => clearTimeout(delay);
-  }, [itemsPerPage, searchTerm, statusFilter, sortBy, sortOrder, currentPage]);
+  }, [itemsPerPage, searchTerm, statusFilter, sortBy, sortOrder, currentPage, fetchCustomers, setSearchParams]);
 
   const handlePageChange = (page: number) => {
     fetchCustomers({ page, limit: itemsPerPage, search: searchTerm, status: statusFilter, sortBy, sortOrder });
@@ -307,20 +332,11 @@ export default function Users() {
 
   const confirmBlock = async () => {
     if (customerToBlock) {
-      await updateCustomerStatus(customerToBlock.id, true); // We should pass reason if api supports it, but store might need update. 
-      // Store `updateCustomerStatus` calls `api.blockCustomer` which takes reason.
-      // Wait, my `customer-store` `updateCustomerStatus` signature is `(id, is_blocked)`. 
-      // It calls `api.blockCustomer(id, 'Blocked from Admin Panel')`. It ignores reason!
-      // I should fix the store to accept reason.
-      // But for now I'll stick to store signature or update store. A small inconsistency is accepted if functional.
-      // Actually, I can update the store quickly.
-      // But I'm in writing `Users.tsx`.
-      // I will assume store handles it or I'll fix store next.
-      // Wait, I can call api directly? No, use store for state update?
-      // I'll call store.
+      await updateCustomerStatus(customerToBlock.id, true, blockReason);
     }
     setBlockModalOpen(false);
     setCustomerToBlock(null);
+    setBlockReason('');
   };
 
   const handleUnblock = async (id: string) => {
@@ -407,11 +423,15 @@ export default function Users() {
             <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Customer Management</h3>
             <div className="flex flex-col sm:flex-row gap-2">
               <AddUserModal />
-              <Button variant="outline" size="sm" onClick={handleExport} className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={handleExport} disabled={isLoading} className="flex items-center gap-2">
                 <Download className="w-4 h-4" />
-                <span className="hidden sm:inline">Export</span>
+                <span className="hidden sm:inline">{isLoading ? 'Exporting...' : 'Export'}</span>
               </Button>
-              <SendMessageModal customers={customers} />
+              <SendMessageModal
+                customers={customers.filter(c => selectedCustomerIds.length > 0 ? selectedCustomerIds.includes(c.id) : true)}
+                selectedIds={selectedCustomerIds}
+                onClose={() => setSelectedCustomerIds([])}
+              />
             </div>
           </div>
 
@@ -468,6 +488,18 @@ export default function Users() {
           <table className="w-full">
             <thead className="bg-slate-50 dark:bg-slate-900">
               <tr>
+                <th className="px-6 py-3 w-4">
+                  <Checkbox
+                    checked={customers.length > 0 && selectedCustomerIds.length === customers.length}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedCustomerIds(customers.map(c => c.id));
+                      } else {
+                        setSelectedCustomerIds([]);
+                      }
+                    }}
+                  />
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Customer</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Contact</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Orders</th>
@@ -480,6 +512,18 @@ export default function Users() {
             <tbody className="bg-white dark:bg-slate-800 divide-y divide-gray-200 dark:divide-gray-700">
               {isLoading ? <tr><td colSpan={7} className="p-4 text-center">Loading...</td></tr> : customers.length === 0 ? <tr><td colSpan={7} className="p-4 text-center">No customers found.</td></tr> : customers.map((customer) => (
                 <tr key={customer.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                  <td className="px-6 py-4 w-4">
+                    <Checkbox
+                      checked={selectedCustomerIds.includes(customer.id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedCustomerIds(prev => [...prev, customer.id]);
+                        } else {
+                          setSelectedCustomerIds(prev => prev.filter(id => id !== customer.id));
+                        }
+                      }}
+                    />
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-gradient-to-r from-[#E63946] to-[#E63946]/80 rounded-full flex items-center justify-center text-white text-sm font-bold">

@@ -454,5 +454,218 @@ export const api = {
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || 'Failed to send message');
         return data.data;
+    },
+
+    // Menu Management API methods
+    getMenuItems: async (params?: any) => {
+        const queryParams = new URLSearchParams();
+        if (params) {
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined && value !== null && value !== '' && value !== 'all') {
+                    queryParams.append(key, String(value));
+                }
+            });
+        }
+
+        const response = await fetch(`/api/menu-items?${queryParams.toString()}`, {
+            headers: getHeaders(),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            if (response.status === 401) localStorage.removeItem('token');
+            throw new Error(data.message || 'Failed to fetch menu items');
+        }
+        return data.data; // Expected { items, total, pages, currentPage } or just array depending on backend
+    },
+
+    getMenuItemCount: async () => {
+        const response = await fetch('/api/menu-items/count', {
+            headers: getHeaders(),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to fetch menu item count');
+        }
+        return data.data;
+    },
+
+    createMenuItem: async (menuItemData: FormData) => {
+        // Note: Content-Type header should NOT be set manually when using FormData
+        // fetch will automatically set it to multipart/form-data with the boundary
+        const token = localStorage.getItem('token');
+        const headers: HeadersInit = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch('/api/menu-items', {
+            method: 'POST',
+            headers: headers,
+            body: menuItemData,
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to create menu item');
+        }
+        return data.data;
+    },
+
+    updateMenuItem: async (id: string, menuItemData: FormData) => {
+        const token = localStorage.getItem('token');
+        const headers: HeadersInit = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(`/api/menu-items/${id}`, {
+            method: 'PATCH',
+            headers: headers,
+            body: menuItemData,
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to update menu item');
+        }
+        return data.data;
+    },
+
+    toggleMenuAvailability: async (id: string) => {
+        const response = await fetch(`/api/menu-items/${id}/availability`, {
+            method: 'PATCH',
+            headers: getHeaders(),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to toggle availability');
+        }
+        return data.data;
+    },
+
+    toggleMenuFeatured: async (id: string) => {
+        const response = await fetch(`/api/menu-items/${id}/featured`, {
+            method: 'PATCH',
+            headers: getHeaders(),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to toggle featured status');
+        }
+        return data.data;
+    },
+
+    deleteMenuItem: async (id: string) => {
+        const response = await fetch(`/api/menu-items/${id}`, {
+            method: 'DELETE',
+            headers: getHeaders(),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to delete menu item');
+        }
+        return data;
+    },
+
+    // Orders API methods
+    getOrders: async (params?: any) => {
+        const queryParams = new URLSearchParams();
+        if (params) {
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined && value !== null && value !== '' && value !== 'all') {
+                    queryParams.append(key, String(value));
+                }
+            });
+        }
+
+        const response = await fetch(`/api/orders?${queryParams.toString()}`, {
+            headers: getHeaders(),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            if (response.status === 401) localStorage.removeItem('token');
+            throw new Error(data.message || 'Failed to fetch orders');
+        }
+        return data.data; // { orders, total, totalPages, currentPage }
+    },
+
+    getOrdersCount: async (params?: any) => {
+        const queryParams = new URLSearchParams();
+        if (params) {
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined && value !== null && value !== '' && value !== 'all') {
+                    queryParams.append(key, String(value));
+                }
+            });
+        }
+
+        const response = await fetch(`/api/orders/count?${queryParams.toString()}`, {
+            headers: getHeaders(),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to fetch orders count');
+        }
+        return data.data; // { count }
+    },
+
+    getOrderById: async (id: string) => {
+        const response = await fetch(`/api/orders/${id}`, {
+            headers: getHeaders(),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to fetch order details');
+        }
+        return data.data;
+    },
+
+    updateOrderStatus: async (id: string, status: string, note?: string) => {
+        const response = await fetch(`/api/orders/${id}/status`, {
+            method: 'PATCH',
+            headers: getHeaders(),
+            body: JSON.stringify({ status, note }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to update order status');
+        }
+        return data.data;
+    },
+
+    updateOrder: async (id: string, updates: any) => {
+        const response = await fetch(`/api/orders/${id}`, {
+            method: 'PATCH',
+            headers: getHeaders(),
+            body: JSON.stringify(updates),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to update order');
+        }
+        return data.data;
+    },
+
+    deleteOrder: async (id: string) => {
+        const response = await fetch(`/api/orders/${id}`, {
+            method: 'DELETE',
+            headers: getHeaders(),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to delete order');
+        }
+        return data;
     }
 };

@@ -40,6 +40,13 @@ app.use('/api/inquiries', inquiryRoutes);
 const customerRoutes = require('./routes/customerRoutes');
 app.use('/api/customers', customerRoutes);
 
+const menuRoutes = require('./routes/menuRoutes');
+app.use('/api/menu-items', menuRoutes);
+
+const orderRoutes = require('./routes/orderRoutes');
+app.use('/api/orders', orderRoutes);
+
+
 // Test DB Connection
 app.get('/health', async (req, res) => {
     try {

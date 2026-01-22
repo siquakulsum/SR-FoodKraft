@@ -8,14 +8,14 @@ import { categoryNames, typeNames } from '@/lib/menu-mock-data';
 const UNIT_TYPES = ['piece', 'kg', 'gram', 'plate', 'bowl', 'liter', 'ml', 'dozen', 'box', 'packet'];
 
 export default function Menu() {
-  const { menuItems, addMenuItem, updateMenuItem, deleteMenuItem, loading } = useMenuStore();
+  const { menuItems, totalItems, totalPages, currentPage, loading, fetchMenuItems, addMenuItem, updateMenuItem, deleteMenuItem, toggleAvailability, toggleFeatured } = useMenuStore();
   const { offers } = useOfferStore();
   const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [isOpen, setIsOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<string | null>(null);
   const [imageMode, setImageMode] = useState<'url' | 'upload'>('url');
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [isListViewOpen, setIsListViewOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
 
@@ -48,34 +48,25 @@ export default function Menu() {
     message: '',
   });
 
-  const filteredItems = menuItems.filter((item) => {
-    // Search filter
-    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.description?.toLowerCase().includes(searchTerm.toLowerCase());
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchData();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm, categoryFilter, typeFilter, availabilityFilter, featuredFilter, itemsPerPage, currentPage]);
 
-    // Category filter
-    const matchesCategory = categoryFilter === 'all' || item.category_id === categoryFilter;
-
-    // Type filter
-    const matchesType = typeFilter === 'all' || item.type_id === typeFilter;
-
-    // Availability filter
-    const matchesAvailability = availabilityFilter === 'all' ||
-      (availabilityFilter === 'available' && item.is_available) ||
-      (availabilityFilter === 'unavailable' && !item.is_available);
-
-    // Featured filter
-    const matchesFeatured = featuredFilter === 'all' ||
-      (featuredFilter === 'featured' && item.is_featured) ||
-      (featuredFilter === 'regular' && !item.is_featured);
-
-    return matchesSearch && matchesCategory && matchesType && matchesAvailability && matchesFeatured;
-  });
-
-  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedItems = filteredItems.slice(startIndex, endIndex);
+  const fetchData = () => {
+    fetchMenuItems({
+      page: currentPage,
+      limit: itemsPerPage,
+      search: searchTerm,
+      category: categoryFilter !== 'all' ? categoryFilter : undefined,
+      type: typeFilter !== 'all' ? typeFilter : undefined,
+      available: availabilityFilter !== 'all' ? availabilityFilter === 'available' : undefined,
+      featured: featuredFilter !== 'all' ? featuredFilter === 'featured' : undefined,
+    });
+  };
 
   const getCategoryName = (categoryId?: string) => {
     return categoryNames[categoryId || ''] || 'Uncategorized';
@@ -169,35 +160,41 @@ export default function Menu() {
     }
   }, [formData.offer_code, formData.price, offers]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const itemData: any = {
-      name: formData.name,
-      description: formData.description || undefined,
-      price: parseFloat(formData.price),
-      category_id: formData.category_id || undefined,
-      type_id: formData.type_id || undefined,
-      image_url: formData.image_url || undefined,
-      unit_type: formData.unit_type,
-      min_order_qty: parseFloat(formData.min_order_qty),
-      max_order_qty: formData.max_order_qty ? parseFloat(formData.max_order_qty) : undefined,
-      pre_order_time: formData.pre_order_time ? parseInt(formData.pre_order_time) : undefined,
-      is_available: formData.is_available,
-      is_featured: formData.is_featured,
-      featured_priority: formData.is_featured ? (menuItems.filter(item => item.is_featured).length + 1) : undefined,
-      offer_code: formData.offer_code || undefined,
-      offer_discount_type: offerValidation.isValid ? offerValidation.offer?.discount_type : undefined,
-      offer_discount_value: offerValidation.isValid ? offerValidation.offer?.discount_value : undefined,
-      discounted_price: offerValidation.isValid ? offerValidation.discountedPrice : undefined,
-    };
+    const submissionData = new FormData();
 
-    if (editingItem) {
-      updateMenuItem(editingItem, itemData);
-    } else {
-      addMenuItem(itemData);
+    submissionData.append('name', formData.name);
+    submissionData.append('description', formData.description || '');
+    submissionData.append('price', formData.price);
+    submissionData.append('category_id', formData.category_id || '');
+    submissionData.append('type_id', formData.type_id || '');
+    submissionData.append('unit_type', formData.unit_type);
+    submissionData.append('min_order_qty', formData.min_order_qty);
+    if (formData.max_order_qty) submissionData.append('max_order_qty', formData.max_order_qty);
+    if (formData.pre_order_time) submissionData.append('pre_order_time', formData.pre_order_time);
+    submissionData.append('is_available', String(formData.is_available));
+    submissionData.append('is_featured', String(formData.is_featured));
+    if (formData.offer_code) submissionData.append('offer_code', formData.offer_code);
+
+    if (imageMode === 'upload' && imageFile) {
+      submissionData.append('image', imageFile);
+    } else if (imageMode === 'url' && formData.image_url) {
+      submissionData.append('image_url', formData.image_url);
     }
-    setIsOpen(false);
-    resetForm();
+
+    try {
+      if (editingItem) {
+        await updateMenuItem(editingItem, submissionData);
+      } else {
+        await addMenuItem(submissionData);
+      }
+      setIsOpen(false);
+      resetForm();
+    } catch (error) {
+      console.error('Failed to save menu item', error);
+      // Ideally show toast here
+    }
   };
 
   const resetForm = () => {
@@ -218,6 +215,7 @@ export default function Menu() {
     });
     setEditingItem(null);
     setImageMode('url');
+    setImageFile(null);
     setOfferValidation({
       isValid: false,
       offer: null,
@@ -243,22 +241,23 @@ export default function Menu() {
       offer_code: item.offer_code || '',
     });
     setEditingItem(item.id);
+    setImageMode('url'); // Default to URL, user can switch to upload if they want to replace it
     setIsOpen(true);
   };
 
-  const handleDelete = (id: string, name: string) => {
+  const handleDelete = async (id: string, name: string) => {
     if (confirm(`Are you sure you want to delete "${name}"?`)) {
-      deleteMenuItem(id);
+      await deleteMenuItem(id);
     }
   };
 
   const handlePageChange = (page: number) => {
-    setCurrentPage(page);
+    fetchMenuItems({ page: page, limit: itemsPerPage });
   };
 
   const handleItemsPerPageChange = (newItemsPerPage: number) => {
     setItemsPerPage(newItemsPerPage);
-    setCurrentPage(1); // Reset to first page when changing items per page
+    fetchMenuItems({ page: 1, limit: newItemsPerPage });
   };
 
   const clearAllFilters = () => {
@@ -267,24 +266,15 @@ export default function Menu() {
     setAvailabilityFilter('all');
     setFeaturedFilter('all');
     setSearchTerm('');
-    setCurrentPage(1);
+    fetchMenuItems({ page: 1, limit: itemsPerPage });
   };
 
-  const handleToggleAvailability = (id: string, isAvailable: boolean) => {
-    updateMenuItem(id, { is_available: !isAvailable });
+  const handleToggleAvailability = async (id: string) => {
+    await toggleAvailability(id);
   };
 
-  const handleToggleFeatured = (id: string) => {
-    const item = menuItems.find(item => item.id === id);
-    if (item) {
-      const newFeaturedStatus = !item.is_featured;
-      const featuredCount = menuItems.filter(menuItem => menuItem.is_featured).length;
-
-      updateMenuItem(id, {
-        is_featured: newFeaturedStatus,
-        featured_priority: newFeaturedStatus ? featuredCount + 1 : undefined
-      });
-    }
+  const handleToggleFeatured = async (id: string) => {
+    await toggleFeatured(id);
   };
 
   const handleDoubleClick = (item: typeof menuItems[0]) => {
@@ -417,7 +407,7 @@ export default function Menu() {
           {/* Results Summary */}
           <div className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400">
             <span>
-              Showing {filteredItems.length} of {menuItems.length} menu items
+              Showing {menuItems.length} of {totalItems} menu items
               {(categoryFilter !== 'all' || typeFilter !== 'all' || availabilityFilter !== 'all' || featuredFilter !== 'all' || searchTerm) && (
                 <span className="text-slate-500 dark:text-slate-500"> (filtered)</span>
               )}
@@ -493,7 +483,7 @@ export default function Menu() {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
-              {paginatedItems.map((item) => (
+              {menuItems.map((item) => (
                 <tr
                   key={item.id}
                   className="hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer"
@@ -565,7 +555,7 @@ export default function Menu() {
                   </td>
                   <td className="px-6 py-4">
                     <button
-                      onClick={() => handleToggleAvailability(item.id, item.is_available)}
+                      onClick={() => handleToggleAvailability(item.id)}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${item.is_available ? 'bg-gold-500' : 'bg-slate-300 dark:bg-slate-600'
                         }`}
                     >
@@ -610,7 +600,7 @@ export default function Menu() {
 
         {/* Mobile Card View */}
         <div className="lg:hidden space-y-4 p-4">
-          {paginatedItems.map((item) => (
+          {menuItems.map((item) => (
             <div
               key={item.id}
               className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 cursor-pointer hover:shadow-md transition-shadow"
@@ -682,7 +672,7 @@ export default function Menu() {
 
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => handleToggleAvailability(item.id, item.is_available)}
+                      onClick={() => handleToggleAvailability(item.id)}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${item.is_available ? 'bg-gold-500' : 'bg-slate-300 dark:bg-slate-600'
                         }`}
                     >
@@ -737,11 +727,11 @@ export default function Menu() {
           ))}
         </div>
 
-        {filteredItems.length > 0 && (
+        {totalItems > 0 && (
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}
-            totalItems={filteredItems.length}
+            totalItems={totalItems}
             itemsPerPage={itemsPerPage}
             onPageChange={handlePageChange}
             onItemsPerPageChange={handleItemsPerPageChange}
@@ -989,10 +979,35 @@ export default function Menu() {
                   />
                 ) : (
                   <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg p-8 text-center">
-                    <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                    <p className="text-sm text-slate-600 dark:text-slate-400">
-                      Image upload coming soon. Please use URL for now.
-                    </p>
+                    <input
+                      type="file"
+                      id="image-upload"
+                      className="hidden"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) setImageFile(file);
+                      }}
+                    />
+                    <label
+                      htmlFor="image-upload"
+                      className="cursor-pointer flex flex-col items-center justify-center w-full h-full"
+                    >
+                      {imageFile ? (
+                        <div className="flex flex-col items-center">
+                          <CheckCircle className="w-8 h-8 text-green-500 mb-2" />
+                          <p className="text-sm font-medium text-slate-900 dark:text-white">{imageFile.name}</p>
+                          <p className="text-xs text-slate-500 mt-1">Click to change</p>
+                        </div>
+                      ) : (
+                        <>
+                          <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                          <p className="text-sm text-slate-600 dark:text-slate-400">
+                            Click to upload image
+                          </p>
+                        </>
+                      )}
+                    </label>
                   </div>
                 )}
               </div>
