@@ -147,17 +147,12 @@ export default function LoginPage() {
             {isLogin ? 'Sign up' : 'Sign in'}
           </button>
         </p>
-        {isLogin && (
-          <p className="mt-2 text-center text-xs text-gray-500 font-inter">
-            Demo: demo@srfoodkraft.com / demo123
-          </p>
-        )}
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
           {/* Authentication Mode Selector */}
-          {authMode === 'email' && isLogin && (
+          {isLogin && (
             <div className="mb-6">
               <div className="grid grid-cols-2 gap-3">
                 <button
