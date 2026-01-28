@@ -3,14 +3,14 @@
 export const isPWAInstalled = (): boolean => {
   // Check if running in standalone mode
   const standalone = window.matchMedia('(display-mode: standalone)').matches;
-  
+
   // Check if app is installed (for iOS)
   const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent);
   if (isIOSDevice) {
     const isInStandaloneMode = ('standalone' in window.navigator) && (window.navigator as any).standalone;
     return isInStandaloneMode;
   }
-  
+
   return standalone;
 };
 
@@ -64,7 +64,14 @@ export const registerServiceWorker = async (): Promise<ServiceWorkerRegistration
   }
 
   try {
-    const registration = await navigator.serviceWorker.register('/sw.js');
+    // Check if already registered
+    const existingRegistration = await navigator.serviceWorker.getRegistration('/sw.js');
+    if (existingRegistration) {
+      console.log('Service Worker already registered:', existingRegistration);
+      return existingRegistration;
+    }
+
+    const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
     console.log('Service Worker registered successfully:', registration);
     return registration;
   } catch (error) {
@@ -129,7 +136,7 @@ export const getInstallPrompt = (): Promise<BeforeInstallPromptEvent | null> => 
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt, { once: true });
-    
+
     // Resolve with null after 5 seconds if no prompt is received
     setTimeout(() => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -191,8 +198,8 @@ export const copyToClipboard = async (text: string): Promise<boolean> => {
 // PWA Analytics
 export const trackPWAEvent = (eventName: string, properties?: Record<string, any>): void => {
   // This would integrate with your analytics service
-  console.log('PWA Event:', eventName, properties);
-  
+  // console.log('PWA Event:', eventName, properties);
+
   // Example: Google Analytics 4
   if (typeof gtag !== 'undefined') {
     gtag('event', eventName, {

@@ -848,7 +848,7 @@ export default function HomePage() {
                             }}
                             className="p-1.5 sm:p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-soft hover:bg-gold-500 hover:text-white transition-all duration-300"
                           >
-                            <Heart className={`h-3 w-3 sm:h-4 sm:w-4 ${state.user?.favorites.includes(item.id) ? 'fill-red-500 text-red-500' : 'text-gray-600'}`} />
+                            <Heart className={`h-3 w-3 sm:h-4 sm:w-4 ${state.user?.favorites?.includes(item.id) ? 'fill-red-500 text-red-500' : 'text-gray-600'}`} />
                           </button>
                         </div>
                       </div>
@@ -1071,7 +1071,7 @@ export default function HomePage() {
                         }}
                         className="p-1.5 sm:p-2.5 bg-white/90 backdrop-blur-sm rounded-full shadow-soft hover:bg-gold-500 hover:text-white transition-all duration-300"
                       >
-                        <Heart className={`h-3 w-3 sm:h-4 sm:w-4 ${state.user?.favorites.includes(item.id) ? 'fill-red-500 text-red-500' : 'text-gray-600'}`} />
+                        <Heart className={`h-3 w-3 sm:h-4 sm:w-4 ${state.user?.favorites?.includes(item.id) ? 'fill-red-500 text-red-500' : 'text-gray-600'}`} />
                       </button>
                     </div>
 

@@ -22,11 +22,10 @@ import ContactPage from './pages/ContactPage';
 import FavoritesPage from './pages/FavoritesPage';
 import PaymentOptionsPage from './pages/PaymentOptionsPage';
 
+import { Toaster } from 'sonner';
+
 function App() {
   useEffect(() => {
-    // Register service worker on app load
-    registerServiceWorker();
-
     // Track PWA usage
     trackPWAEvent('app_loaded');
 
@@ -44,31 +43,30 @@ function App() {
 
   return (
     <AppProvider>
-      <Router>
-        <div className="min-h-screen flex flex-col">
-          <OfflineIndicator />
-          <Header />
-          <main className="flex-grow pt-20">
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/menu" element={<MenuPage />} />
-              <Route path="/cart" element={<CartPage />} />
-              <Route path="/checkout" element={<CheckoutPage />} />
-              <Route path="/order-confirmation" element={<OrderConfirmationPage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/reset-password" element={<ResetPasswordPage />} />
-              <Route path="/orders" element={<OrdersPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/about" element={<AboutPage />} />
-              <Route path="/contact" element={<ContactPage />} />
-              <Route path="/favorites" element={<FavoritesPage />} />
-              <Route path="/payment-options" element={<PaymentOptionsPage />} />
-            </Routes>
-          </main>
-          <Footer />
-          <PWARegistration />
-        </div>
-      </Router>
+      <div className="min-h-screen flex flex-col">
+        <Toaster position="top-center" richColors />
+        <OfflineIndicator />
+        <Header />
+        <main className="flex-grow pt-20">
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/menu" element={<MenuPage />} />
+            <Route path="/cart" element={<CartPage />} />
+            <Route path="/checkout" element={<CheckoutPage />} />
+            <Route path="/order-confirmation" element={<OrderConfirmationPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/orders" element={<OrdersPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/contact" element={<ContactPage />} />
+            <Route path="/favorites" element={<FavoritesPage />} />
+            <Route path="/payment-options" element={<PaymentOptionsPage />} />
+          </Routes>
+        </main>
+        <Footer />
+        <PWARegistration />
+      </div>
     </AppProvider>
   );
 }

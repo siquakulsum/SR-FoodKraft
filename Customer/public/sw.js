@@ -80,7 +80,7 @@ self.addEventListener('fetch', (event) => {
     // Images - handle external vs internal differently
     else if (request.destination === 'image') {
       // For external images, use network first with fallback
-      if (!request.url.includes(window.location.origin)) {
+      if (!request.url.includes(self.location.origin)) {
         event.respondWith(networkFirst(request));
       } else {
         event.respondWith(cacheFirst(request));
@@ -103,7 +103,7 @@ async function cacheFirst(request) {
     if (cachedResponse) {
       return cachedResponse;
     }
-    
+
     const networkResponse = await fetch(request);
     if (networkResponse.ok) {
       const cache = await caches.open(STATIC_CACHE);
@@ -112,7 +112,7 @@ async function cacheFirst(request) {
     return networkResponse;
   } catch (error) {
     console.error('Cache first strategy failed:', error);
-    
+
     // For external images, return a placeholder or skip caching
     if (request.destination === 'image' && !request.url.includes(window.location.origin)) {
       // Don't cache external images, just return a placeholder
@@ -121,12 +121,12 @@ async function cacheFirst(request) {
         { headers: { 'Content-Type': 'image/svg+xml' } }
       );
     }
-    
+
     // Return offline page for navigation requests
     if (request.destination === 'document') {
       return caches.match('/offline.html') || new Response('Offline', { status: 503 });
     }
-    
+
     // For other requests, return a generic error response
     return new Response('Resource not available offline', { status: 503 });
   }
@@ -147,12 +147,12 @@ async function networkFirst(request) {
     if (cachedResponse) {
       return cachedResponse;
     }
-    
+
     // Return appropriate offline response
     if (request.destination === 'document') {
       return caches.match('/offline.html') || new Response('Offline', { status: 503 });
     }
-    
+
     // For API requests, return a structured offline response
     if (request.url.includes('/api/')) {
       return new Response(JSON.stringify({
@@ -164,7 +164,7 @@ async function networkFirst(request) {
         headers: { 'Content-Type': 'application/json' }
       });
     }
-    
+
     throw error;
   }
 }
@@ -172,11 +172,11 @@ async function networkFirst(request) {
 // Background sync for offline actions
 self.addEventListener('sync', (event) => {
   console.log('Service Worker: Background sync triggered', event.tag);
-  
+
   if (event.tag === 'order-sync') {
     event.waitUntil(syncOrders());
   }
-  
+
   if (event.tag === 'cart-sync') {
     event.waitUntil(syncCart());
   }
@@ -187,7 +187,7 @@ async function syncOrders() {
   try {
     // Get pending orders from IndexedDB
     const pendingOrders = await getPendingOrders();
-    
+
     for (const order of pendingOrders) {
       try {
         const response = await fetch('/api/orders', {
@@ -195,7 +195,7 @@ async function syncOrders() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(order)
         });
-        
+
         if (response.ok) {
           // Remove from pending orders
           await removePendingOrder(order.id);
@@ -220,7 +220,7 @@ async function syncCart() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(cartData)
       });
-      
+
       if (response.ok) {
         console.log('Cart synced successfully');
       }
@@ -233,7 +233,7 @@ async function syncCart() {
 // Push notification handling
 self.addEventListener('push', (event) => {
   console.log('Service Worker: Push notification received');
-  
+
   const options = {
     body: 'You have a new update from SR Food Kraft!',
     icon: '/icons/icon-192x192.png',
@@ -256,13 +256,13 @@ self.addEventListener('push', (event) => {
       }
     ]
   };
-  
+
   if (event.data) {
     const data = event.data.json();
     options.body = data.body || options.body;
     options.data = { ...options.data, ...data };
   }
-  
+
   event.waitUntil(
     self.registration.showNotification('SR Food Kraft', options)
   );
@@ -271,9 +271,9 @@ self.addEventListener('push', (event) => {
 // Notification click handling
 self.addEventListener('notificationclick', (event) => {
   console.log('Service Worker: Notification clicked');
-  
+
   event.notification.close();
-  
+
   if (event.action === 'explore') {
     event.waitUntil(
       clients.openWindow('/')
@@ -310,7 +310,7 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
-  
+
   if (event.data && event.data.type === 'GET_VERSION') {
     event.ports[0].postMessage({ version: CACHE_NAME });
   }

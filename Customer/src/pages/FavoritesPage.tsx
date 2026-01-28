@@ -101,8 +101,8 @@ export default function FavoritesPage() {
                     />
                     <div className="absolute top-2 right-2">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${item.isVegetarian
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
                         }`}>
                         {item.isVegetarian ? 'Veg' : 'Non-Veg'}
                       </span>

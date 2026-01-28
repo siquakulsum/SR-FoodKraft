@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { toast } from 'sonner';
 import {
-  Calendar, Clock, Package, CheckCircle, XCircle, Download, AlertTriangle,
-  Search, Filter, SortAsc, SortDesc, RotateCcw, Share2, Heart, MessageSquare,
-  FileText, Eye, EyeOff, MoreVertical, RefreshCw,
-  MapPin, Phone, Mail, Printer, Copy, Bookmark, BookmarkCheck
+  Calendar, Clock, Package, CheckCircle, XCircle, Download,
+  Search, Filter, SortAsc, SortDesc, RotateCcw, Share2, Heart,
+  FileText, Eye, EyeOff,
+  RefreshCw,
+  Bookmark, BookmarkCheck
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Order } from '../types';
@@ -141,7 +143,7 @@ export default function OrdersPage() {
       // Search filtering
       const searchMatch = !searchTerm ||
         order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.items.some(item => item.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        order.items.some(item => item.menuItem.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
         order.deliveryAddress.address.toLowerCase().includes(searchTerm.toLowerCase());
 
       // Advanced filters
@@ -466,7 +468,7 @@ export default function OrdersPage() {
                     // Add all selected orders to favorites
                     setFavoriteOrders(prev => [...new Set([...prev, ...selectedOrders])]);
                     setSelectedOrders([]);
-                    alert('Selected orders added to favorites!');
+                    toast.success('Selected orders added to favorites!');
                   }}
                   className="flex items-center px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 transition-colors font-inter font-medium"
                 >
@@ -588,13 +590,13 @@ export default function OrdersPage() {
                               dispatch({
                                 type: 'ADD_TO_CART',
                                 payload: {
-                                  menuItem: item,
+                                  menuItem: item.menuItem,
                                   quantity: item.quantity,
                                   unit: item.unit
                                 }
                               });
                             });
-                            alert('Items added to cart for reorder!');
+                            toast.success('Items added to cart for reorder!');
                           }}
                           className="flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-inter font-medium"
                         >
@@ -615,7 +617,7 @@ export default function OrdersPage() {
                             await navigator.share(shareData);
                           } catch (err) {
                             navigator.clipboard.writeText(`Order #${order.id} - SR Food Kraft - ₹${order.totalAmount.toFixed(2)}`);
-                            alert('Order details copied to clipboard!');
+                            toast.success('Order details copied to clipboard!');
                           }
                         }}
                         className="flex items-center px-3 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
@@ -682,10 +684,10 @@ export default function OrdersPage() {
                                     <tbody>
                                       ${order.items.map(item => `
                                         <tr>
-                                          <td>${item.name}</td>
+                                          <td>${item.menuItem.name}</td>
                                           <td>${item.quantity} ${item.unit}</td>
-                                          <td>₹${item.price.toFixed(2)}</td>
-                                          <td>₹${(item.price * item.quantity).toFixed(2)}</td>
+                                          <td>₹${(item.menuItem.pricePerKg || item.menuItem.pricePerPiece || item.menuItem.pricePerLiter || 0).toFixed(2)}</td>
+                                          <td>₹${((item.menuItem.pricePerKg || item.menuItem.pricePerPiece || item.menuItem.pricePerLiter || 0) * item.quantity).toFixed(2)}</td>
                                         </tr>
                                       `).join('')}
                                     </tbody>
@@ -709,40 +711,42 @@ export default function OrdersPage() {
                 </div>
 
                 {/* Order Progress */}
-                {order.status !== 'cancelled' && (
-                  <div className="mt-4 pt-4 border-t border-gray-200">
-                    <div className="flex items-center justify-between">
-                      {['placed', 'paid', 'preparing', 'delivered'].map((step, index) => {
-                        const isCompleted = ['placed', 'paid', 'preparing', 'delivered'].indexOf(order.status) >= index;
-                        const isCurrent = order.status === step;
+                {
+                  order.status !== 'cancelled' && (
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <div className="flex items-center justify-between">
+                        {['placed', 'paid', 'preparing', 'delivered'].map((step, index) => {
+                          const isCompleted = ['placed', 'paid', 'preparing', 'delivered'].indexOf(order.status) >= index;
+                          const isCurrent = order.status === step;
 
-                        return (
-                          <div key={step} className="flex flex-col items-center">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${isCompleted
-                              ? 'bg-gold text-black'
-                              : 'bg-gray-200 text-gray-500'
-                              }`}>
-                              {index + 1}
+                          return (
+                            <div key={step} className="flex flex-col items-center">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${isCompleted
+                                ? 'bg-gold text-black'
+                                : 'bg-gray-200 text-gray-500'
+                                }`}>
+                                {index + 1}
+                              </div>
+                              <span className={`text-xs mt-1 ${isCurrent ? 'text-gold font-medium' : 'text-gray-500'
+                                }`}>
+                                {step.charAt(0).toUpperCase() + step.slice(1)}
+                              </span>
                             </div>
-                            <span className={`text-xs mt-1 ${isCurrent ? 'text-gold font-medium' : 'text-gray-500'
-                              }`}>
-                              {step.charAt(0).toUpperCase() + step.slice(1)}
-                            </span>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
+                      <div className="relative mt-2">
+                        <div className="absolute top-0 left-0 h-1 bg-gray-200 rounded-full" style={{ width: '100%' }}></div>
+                        <div
+                          className="absolute top-0 left-0 h-1 bg-gold rounded-full transition-all duration-300"
+                          style={{
+                            width: `${((['placed', 'paid', 'preparing', 'delivered'].indexOf(order.status) + 1) / 4) * 100}%`
+                          }}
+                        ></div>
+                      </div>
                     </div>
-                    <div className="relative mt-2">
-                      <div className="absolute top-0 left-0 h-1 bg-gray-200 rounded-full" style={{ width: '100%' }}></div>
-                      <div
-                        className="absolute top-0 left-0 h-1 bg-gold rounded-full transition-all duration-300"
-                        style={{
-                          width: `${((['placed', 'paid', 'preparing', 'delivered'].indexOf(order.status) + 1) / 4) * 100}%`
-                        }}
-                      ></div>
-                    </div>
-                  </div>
-                )}
+                  )
+                }
               </div>
             ))
           ) : (
@@ -846,20 +850,20 @@ export default function OrdersPage() {
               <h4 className="font-poppins font-semibold text-black mb-3">Order Items</h4>
               <div className="space-y-3">
                 {selectedOrder.items.map((item, index) => {
-                  const existingRating = state.ratings.find(r => r.menuItemId === item.id && r.userId === state.user?.id);
+                  const existingRating = state.ratings.find(r => r.menuItemId === item.menuItem.id && r.userId === state.user?.id);
 
                   return (
                     <div key={index} className="bg-gray-50 rounded-lg p-4">
                       <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center">
+                        <div className="flex items-center space-x-3">
                           <img
-                            src={item.image}
-                            alt={item.name}
-                            className="w-12 h-12 object-cover rounded-lg mr-3"
+                            src={item.menuItem.image}
+                            alt={item.menuItem.name}
+                            className="w-12 h-12 rounded-lg object-cover"
                           />
                           <div>
                             <p className="font-inter font-medium text-black text-sm">
-                              {item.name}
+                              {item.menuItem.name}
                             </p>
                             <p className="font-inter text-gray-500 text-xs">
                               {item.quantity} {item.unit}
@@ -867,7 +871,7 @@ export default function OrdersPage() {
                           </div>
                         </div>
                         <p className="font-inter font-medium text-black text-sm">
-                          ₹{(item.price * item.quantity).toFixed(2)}
+                          ₹{((item.menuItem.pricePerKg || item.menuItem.pricePerPiece || item.menuItem.pricePerLiter || 0) * item.quantity).toFixed(2)}
                         </p>
                       </div>
 
@@ -888,9 +892,9 @@ export default function OrdersPage() {
                               </div>
                               <button
                                 onClick={() => handleRateItem({
-                                  id: item.id,
-                                  name: item.name,
-                                  image: item.image
+                                  id: item.menuItem.id,
+                                  name: item.menuItem.name,
+                                  image: item.menuItem.image
                                 })}
                                 className="text-xs text-gold hover:text-yellow-600 font-medium"
                               >
@@ -905,16 +909,16 @@ export default function OrdersPage() {
                                   onRatingChange={(rating) => {
                                     if (rating > 0) {
                                       handleRateItem({
-                                        id: item.id,
-                                        name: item.name,
-                                        image: item.image
+                                        id: item.menuItem.id,
+                                        name: item.menuItem.name,
+                                        image: item.menuItem.image
                                       });
                                     }
                                   }}
                                   size="sm"
                                 />
                                 <span className="text-xs text-gray-600 font-inter">
-                                  Rate this menu now
+                                  Rate this item
                                 </span>
                               </div>
                             </div>
@@ -1011,7 +1015,7 @@ export default function OrdersPage() {
       </Modal>
 
       {/* Cancel Order Confirmation Modal */}
-      <Modal isOpen={showCancelModal} onClose={() => setShowCancelModal(false)}>
+      <Modal isOpen={showCancelModal} onClose={() => setShowCancelModal(false)} title="Cancel Order">
         <div className="p-6">
           <div className="flex items-center mb-4">
             <div className="flex-shrink-0 w-10 h-10 mx-auto flex items-center justify-center rounded-full bg-red-100">
@@ -1055,6 +1059,6 @@ export default function OrdersPage() {
         menuItemImage={selectedMenuItem?.image || ''}
         onSubmit={handleRatingSubmit}
       />
-    </div>
+    </div >
   );
 }

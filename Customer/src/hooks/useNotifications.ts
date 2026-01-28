@@ -106,7 +106,7 @@ export function useNotifications() {
         (payload) => {
           const newNotification = payload.new as Notification;
           setNotifications(prev => [newNotification, ...prev]);
-          
+
           // Show browser notification if enabled
           if ('Notification' in window && Notification.permission === 'granted') {
             new Notification(newNotification.title, {
@@ -150,7 +150,7 @@ export function useNotifications() {
 
     try {
       const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id);
-      
+
       for (const id of unreadIds) {
         await markAsRead(id);
       }

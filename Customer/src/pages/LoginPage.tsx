@@ -7,6 +7,8 @@ import OTPLogin from '../components/Auth/OTPLogin';
 import ForgotPassword from '../components/Auth/ForgotPassword';
 import { api } from '../services/api';
 
+import { toast } from 'sonner';
+
 export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
@@ -29,36 +31,59 @@ export default function LoginPage() {
 
     // Simple validation
     if (!formData.email || !formData.password) {
-      alert('Please fill in all required fields');
+      toast.warning('Please fill in all required fields');
       return;
     }
 
     if (!isLogin && (!formData.name || !formData.phone)) {
-      alert('Please fill in all required fields');
+      toast.warning('Please fill in all required fields');
       return;
     }
 
     try {
       if (isLogin) {
         // Login
-        const { user, token } = await api.login(formData.email, formData.password);
+        const response = await api.login(formData.email, formData.password);
+
+        if (!response || !response.user || !response.token) {
+          throw new Error('Invalid response from server');
+        }
+
+        const { user, token } = response;
         localStorage.setItem('token', token);
         dispatch({ type: 'LOGIN', payload: user });
-        navigate(redirectTo);
+
+        toast.success('Login successful!');
+
+        // Redirect based on role
+        if (user && user.role === 'admin') {
+          navigate('/admin');
+        } else {
+          navigate(redirectTo);
+        }
       } else {
         // Register
-        const { user, token } = await api.register({
+        const response = await api.register({
           name: formData.name,
           email: formData.email,
           password: formData.password,
           phone: formData.phone
         });
+
+        if (!response || !response.user || !response.token) {
+          throw new Error('Invalid response from server');
+        }
+
+        const { user, token } = response;
         localStorage.setItem('token', token);
         dispatch({ type: 'LOGIN', payload: user });
+
+        toast.success('Registration successful!');
         navigate(redirectTo);
       }
     } catch (error: any) {
-      alert(error.message || 'Authentication failed');
+      console.error('Authentication error:', error);
+      toast.error(error.message || 'Authentication failed');
     }
   };
 
@@ -76,6 +101,7 @@ export default function LoginPage() {
       name: user.user_metadata?.name || 'OTP User',
       email: user.email,
       phone: user.user_metadata?.phone || '',
+      role: user.user_metadata?.role || 'customer',
       addresses: [],
       favorites: [],
     };

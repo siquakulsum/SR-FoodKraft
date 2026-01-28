@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import {
   CheckCircle,
@@ -6,22 +7,19 @@ import {
   Clock,
   MapPin,
   CreditCard,
-  Download,
   Home,
   Share2,
-  Star,
   Gift,
   Truck,
   ChefHat,
   Bell,
   Printer,
-  RotateCcw,
-  Heart,
-  MessageCircle,
   Phone,
   Mail,
-  MessageSquare
+  MessageSquare,
+  RotateCcw
 } from 'lucide-react';
+import StarRating from '../components/UI/StarRating';
 import Button from '../components/UI/Button';
 import { useApp } from '../context/AppContext';
 
@@ -41,12 +39,11 @@ export default function OrderConfirmationPage() {
   const { order, paymentResult } = location.state || {};
 
   const [currentStep, setCurrentStep] = useState(1);
-  const [showFeedback, setShowFeedback] = useState(false);
   const [rating, setRating] = useState(0);
   const [feedback, setFeedback] = useState('');
   const [loyaltyPoints, setLoyaltyPoints] = useState(0);
   const [estimatedDelivery, setEstimatedDelivery] = useState('');
-  const [recommendations, setRecommendations] = useState([]);
+  const [recommendations, setRecommendations] = useState<any[]>([]);
 
   // Initialize data
   useEffect(() => {
@@ -78,8 +75,8 @@ export default function OrderConfirmationPage() {
       // Import menu data for recommendations
       import('../data/menuData').then(({ menuData }) => {
         // Get categories from current order
-        const orderCategories = [...new Set(order.items.map(item => item.menuItem.category))];
-        const orderedItemIds = order.items.map(item => item.menuItem.id);
+        const orderCategories = [...new Set(order.items.map((item: any) => item.menuItem.category))];
+        const orderedItemIds = order.items.map((item: any) => item.menuItem.id);
 
         // Find items from same categories that weren't ordered
         const recommendedItems = menuData
@@ -145,16 +142,17 @@ export default function OrderConfirmationPage() {
     } else {
       // Fallback to clipboard
       navigator.clipboard.writeText(`${shareData.text} - ${shareData.url}`);
-      alert('Order details copied to clipboard!');
+      toast.success('Order details copied to clipboard!');
     }
   };
 
   const handleReorder = () => {
     // Add all items from this order to cart
-    order.items.forEach(item => {
+    order.items.forEach((item: any) => {
       dispatch({
         type: 'ADD_TO_CART',
         payload: {
+          id: item.menuItem.id, // Or generate new ID
           menuItem: item.menuItem,
           quantity: item.quantity,
           unit: item.unit
@@ -167,8 +165,7 @@ export default function OrderConfirmationPage() {
   const handleFeedbackSubmit = () => {
     // In real app, this would send feedback to backend
     console.log('Feedback submitted:', { rating, feedback });
-    setShowFeedback(false);
-    alert('Thank you for your feedback!');
+    toast.success('Thank you for your feedback!');
   };
 
   const handlePrintInvoice = () => {
@@ -252,12 +249,12 @@ export default function OrderConfirmationPage() {
               </tr>
             </thead>
             <tbody>
-              ${order.items.map(item => `
+              ${order.items.map((item: any) => `
                 <tr>
                   <td>${item.menuItem.name}</td>
                   <td>${item.quantity} ${item.unit}</td>
-                  <td>₹${(item.menuItem.pricePerKg || item.menuItem.pricePerPiece || item.menuItem.pricePerLiter).toFixed(2)}</td>
-                  <td>₹${((item.menuItem.pricePerKg || item.menuItem.pricePerPiece || item.menuItem.pricePerLiter) * item.quantity).toFixed(2)}</td>
+                  <td>₹${(item.menuItem.pricePerKg || item.menuItem.pricePerPiece || item.menuItem.pricePerLiter || 0).toFixed(2)}</td>
+                  <td>₹${((item.menuItem.pricePerKg || item.menuItem.pricePerPiece || item.menuItem.pricePerLiter || 0) * item.quantity).toFixed(2)}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -501,7 +498,7 @@ export default function OrderConfirmationPage() {
 
           <div className="space-y-3 sm:space-y-4">
             {order.items.map((item: any) => (
-              <div key={item.id} className="flex items-center justify-between py-3 sm:py-4 border-b border-gray-100 last:border-b-0">
+              <div key={item.menuItem.id} className="flex items-center justify-between py-3 sm:py-4 border-b border-gray-100 last:border-b-0">
                 <div className="flex items-center min-w-0 flex-1">
                   <img
                     src={item.menuItem.image}
@@ -633,15 +630,11 @@ export default function OrderConfirmationPage() {
             How was your ordering experience?
           </h2>
           <div className="flex items-center space-x-1 sm:space-x-2 mb-3 sm:mb-4">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <button
-                key={star}
-                onClick={() => setRating(star)}
-                className={`p-1 ${rating >= star ? 'text-yellow-400' : 'text-gray-300'}`}
-              >
-                <Star className="h-5 w-5 sm:h-6 sm:w-6 fill-current" />
-              </button>
-            ))}
+            <StarRating
+              rating={rating}
+              onRatingChange={setRating}
+              size="md"
+            />
           </div>
           {rating > 0 && (
             <div className="space-y-3 sm:space-y-4">

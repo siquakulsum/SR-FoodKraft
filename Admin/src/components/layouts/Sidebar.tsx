@@ -29,9 +29,8 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
       )}
 
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-40 w-72 sm:w-64 glass-effect border-r border-slate-200/60 dark:border-slate-700/60 backdrop-blur-xl transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-          }`}
-        style={{ top: '64px', height: 'calc(100vh - 64px)' }}
+        className={`fixed lg:sticky top-0 inset-y-0 left-0 z-50 w-72 sm:w-64 glass-effect border-r border-slate-200/60 dark:border-slate-700/60 backdrop-blur-xl transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+          } h-screen`}
       >
         <div className="flex flex-col h-full">
           <div className="p-4 sm:p-6 border-b border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between">

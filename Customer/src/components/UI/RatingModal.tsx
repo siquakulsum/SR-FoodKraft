@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Star, Send } from 'lucide-react';
+import { toast } from 'sonner';
 import Modal from './Modal';
 import Button from './Button';
 import StarRating from './StarRating';
@@ -30,7 +31,7 @@ export default function RatingModal({
 
   const handleSubmit = () => {
     if (rating === 0) {
-      alert('Please select a rating');
+      toast.warning('Please select a rating');
       return;
     }
     onSubmit(rating, review);
@@ -105,11 +106,10 @@ export default function RatingModal({
             value={review}
             onChange={(e) => setReview(e.target.value)}
             placeholder={rating > 0 ? "Tell others about your experience with this dish..." : "Share your thoughts about this dish..."}
-            className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-gold focus:border-transparent resize-none transition-all duration-200 ${
-              rating > 0 
-                ? 'border-gray-300 bg-white' 
-                : 'border-gray-200 bg-gray-50'
-            }`}
+            className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-gold focus:border-transparent resize-none transition-all duration-200 ${rating > 0
+              ? 'border-gray-300 bg-white'
+              : 'border-gray-200 bg-gray-50'
+              }`}
             rows={4}
             maxLength={500}
             disabled={rating === 0}
@@ -131,11 +131,10 @@ export default function RatingModal({
           <Button
             onClick={handleSubmit}
             disabled={rating === 0 || loading}
-            className={`flex-1 flex items-center justify-center transition-all duration-200 ${
-              rating > 0 
-                ? 'bg-gradient-to-r from-gold to-yellow-500 hover:from-yellow-500 hover:to-gold shadow-lg' 
-                : ''
-            }`}
+            className={`flex-1 flex items-center justify-center transition-all duration-200 ${rating > 0
+              ? 'bg-gradient-to-r from-gold to-yellow-500 hover:from-yellow-500 hover:to-gold shadow-lg'
+              : ''
+              }`}
           >
             {loading ? (
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { User, Mail, Phone, MapPin, Edit, Save, Plus, Trash2, Star, Lock, Eye, EyeOff } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import Button from '../components/UI/Button';
@@ -66,8 +67,9 @@ export default function ProfilePage() {
 
       dispatch({ type: 'LOGIN', payload: updatedUser });
       setIsEditing(false);
+      toast.success('Profile updated successfully');
     } catch (error: any) {
-      alert(error.message || 'Failed to update profile');
+      toast.error(error.message || 'Failed to update profile');
     }
   };
 
@@ -133,7 +135,7 @@ export default function ProfilePage() {
 
   const handleSaveAddress = () => {
     if (!addressData.street || !addressData.city || !addressData.state || !addressData.zipCode) {
-      alert('Please fill in all address fields');
+      toast.warning('Please fill in all address fields');
       return;
     }
 
@@ -151,35 +153,37 @@ export default function ProfilePage() {
       dispatch({ type: 'ADD_ADDRESS', payload: address });
     }
 
+    toast.success(editingAddress ? 'Address updated' : 'Address added');
     setShowAddressModal(false);
     setEditingAddress(null);
   };
 
   const handleDeleteAddress = (addressId: string) => {
-    if (confirm('Are you sure you want to delete this address?')) {
+    if (window.confirm('Are you sure you want to delete this address?')) {
       dispatch({ type: 'DELETE_ADDRESS', payload: addressId });
+      toast.success('Address deleted');
     }
   };
 
   const handlePasswordChange = async () => {
     if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
-      alert('Please fill in all password fields');
+      toast.warning('Please fill in all password fields');
       return;
     }
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert('New passwords do not match');
+      toast.warning('New passwords do not match');
       return;
     }
 
     if (passwordData.newPassword.length < 6) {
-      alert('New password must be at least 6 characters long');
+      toast.warning('New password must be at least 6 characters long');
       return;
     }
 
     try {
       await api.changePassword(passwordData.currentPassword, passwordData.newPassword);
-      alert('Password updated successfully');
+      toast.success('Password updated successfully');
       setShowPasswordModal(false);
       setPasswordData({
         currentPassword: '',
@@ -187,7 +191,7 @@ export default function ProfilePage() {
         confirmPassword: '',
       });
     } catch (error: any) {
-      alert(error.message || 'Failed to update password');
+      toast.error(error.message || 'Failed to update password');
     }
   };
 

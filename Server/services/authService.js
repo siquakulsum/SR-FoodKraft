@@ -14,19 +14,27 @@ const generateToken = (id, role) => {
 const register = async (userData) => {
     const { name, email, phone, password, role } = userData;
 
-    // Check if user exists (email or phone)
-    const existingUser = await User.findOne({
-        where: {
-            [Op.or]: [
-                { email: email },
-                // Only check phone if it's provided
-                ...(phone ? [{ phone: phone }] : [])
-            ]
-        }
+    // Normalize phone - treat empty string as null
+    const normalizedPhone = phone && phone.trim() !== '' ? phone.trim() : null;
+
+    // Check if user exists by email
+    const existingUserByEmail = await User.findOne({
+        where: { email: email }
     });
 
-    if (existingUser) {
-        throw new Error('User already exists with this email or phone');
+    if (existingUserByEmail) {
+        throw new Error('An account with this email already exists');
+    }
+
+    // Check if user exists by phone (only if phone is provided)
+    if (normalizedPhone) {
+        const existingUserByPhone = await User.findOne({
+            where: { phone: normalizedPhone }
+        });
+
+        if (existingUserByPhone) {
+            throw new Error('An account with this phone number already exists');
+        }
     }
 
     // Hash password
@@ -37,7 +45,7 @@ const register = async (userData) => {
     const user = await User.create({
         name,
         email,
-        phone,
+        phone: normalizedPhone,
         password_hash,
         role: role || 'customer',
         is_active: true
