@@ -318,4 +318,167 @@ export const api = {
         document.body.removeChild(link);
         window.URL.revokeObjectURL(downloadUrl);
     },
+
+    // CMS API methods
+    getCMSBanners: async () => {
+        const response = await fetch('/api/cms/banners', { headers: getHeaders() });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to fetch banners');
+        return data.data;
+    },
+    createCMSBanner: async (bannerData: any) => {
+        const response = await fetch('/api/cms/banners', {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify(bannerData),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to create banner');
+        return data.data;
+    },
+    updateCMSBanner: async (id: string, updates: any) => {
+        const response = await fetch(`/api/cms/banners/${id}`, {
+            method: 'PUT',
+            headers: getHeaders(),
+            body: JSON.stringify(updates),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to update banner');
+        return data.data;
+    },
+    deleteCMSBanner: async (id: string) => {
+        const response = await fetch(`/api/cms/banners/${id}`, {
+            method: 'DELETE',
+            headers: getHeaders(),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to delete banner');
+        return data;
+    },
+
+    getCMSPages: async () => {
+        const response = await fetch('/api/cms/pages', { headers: getHeaders() });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to fetch pages');
+        return data.data;
+    },
+    createCMSPage: async (pageData: any) => {
+        const response = await fetch('/api/cms/pages', {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify(pageData),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to create page');
+        return data.data;
+    },
+    updateCMSPage: async (id: string, updates: any) => {
+        const response = await fetch(`/api/cms/pages/${id}`, {
+            method: 'PUT',
+            headers: getHeaders(),
+            body: JSON.stringify(updates),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to update page');
+        return data.data;
+    },
+    deleteCMSPage: async (id: string) => {
+        const response = await fetch(`/api/cms/pages/${id}`, {
+            method: 'DELETE',
+            headers: getHeaders(),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to delete page');
+        return data;
+    },
+
+    getCMSFAQs: async () => {
+        const response = await fetch('/api/cms/faqs', { headers: getHeaders() });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to fetch FAQs');
+        return data.data;
+    },
+    createCMSFAQ: async (faqData: any) => {
+        const response = await fetch('/api/cms/faqs', {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify(faqData),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to create FAQ');
+        return data.data;
+    },
+    updateCMSFAQ: async (id: string, updates: any) => {
+        const response = await fetch(`/api/cms/faqs/${id}`, {
+            method: 'PUT',
+            headers: getHeaders(),
+            body: JSON.stringify(updates),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to update FAQ');
+        return data.data;
+    },
+    deleteCMSFAQ: async (id: string) => {
+        const response = await fetch(`/api/cms/faqs/${id}`, {
+            method: 'DELETE',
+            headers: getHeaders(),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to delete FAQ');
+        return data;
+    },
+
+    getCMSTestimonials: async () => {
+        const response = await fetch('/api/cms/testimonials', { headers: getHeaders() });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to fetch testimonials');
+        return data.data;
+    },
+    createCMSTestimonial: async (testimonialData: any) => {
+        const response = await fetch('/api/cms/testimonials', {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify(testimonialData),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to create testimonial');
+        return data.data;
+    },
+    updateCMSTestimonial: async (id: string, updates: any) => {
+        const response = await fetch(`/api/cms/testimonials/${id}`, {
+            method: 'PUT',
+            headers: getHeaders(),
+            body: JSON.stringify(updates),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to update testimonial');
+        return data.data;
+    },
+    deleteCMSTestimonial: async (id: string) => {
+        const response = await fetch(`/api/cms/testimonials/${id}`, {
+            method: 'DELETE',
+            headers: getHeaders(),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to delete testimonial');
+        return data;
+    },
+
+    getCMSSettings: async () => {
+        const response = await fetch('/api/cms/settings', { headers: getHeaders() });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to fetch settings');
+        return data.data;
+    },
+    updateCMSSetting: async (key: string, value: string, type: string = 'text') => {
+        const response = await fetch('/api/cms/settings', {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({ key, value, type }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to update setting');
+        return data.data;
+    },
 };
+

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/services/api';
 import { GalleryImage, ContentPage, FAQ, BlogPost, SiteSetting, ProductCategory, ProductType } from '@/types/cms';
 
 interface CMSEnhancedState {
@@ -33,7 +33,7 @@ interface CMSEnhancedState {
   deleteBlogPost: (id: string) => Promise<void>;
 
   fetchSiteSettings: () => Promise<void>;
-  updateSiteSetting: (id: string, value: string) => Promise<void>;
+  updateSiteSetting: (idOrKey: string, value: string, type?: string) => Promise<void>;
 
   fetchProductCategories: () => Promise<void>;
   addProductCategory: (category: Omit<ProductCategory, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
@@ -48,7 +48,7 @@ interface CMSEnhancedState {
   uploadImage: (file: File, bucket: string) => Promise<string>;
 }
 
-export const useCMSEnhancedStore = create<CMSEnhancedState>((set) => ({
+export const useCMSEnhancedStore = create<CMSEnhancedState>((set, get) => ({
   galleryImages: [],
   contentPages: [],
   faqs: [],
@@ -62,12 +62,7 @@ export const useCMSEnhancedStore = create<CMSEnhancedState>((set) => ({
   fetchGalleryImages: async () => {
     set({ loading: true, error: null });
     try {
-      const { data, error } = await supabase
-        .from('gallery_images')
-        .select('*')
-        .order('display_order', { ascending: true });
-
-      if (error) throw error;
+      const data = await api.getCMSBanners(); // Using banners as gallery images for now or similar
       set({ galleryImages: data || [], loading: false });
     } catch (error: any) {
       set({ error: error.message, loading: false });
@@ -77,13 +72,7 @@ export const useCMSEnhancedStore = create<CMSEnhancedState>((set) => ({
   addGalleryImage: async (image) => {
     set({ loading: true, error: null });
     try {
-      const { data, error } = await supabase
-        .from('gallery_images')
-        .insert([image])
-        .select()
-        .single();
-
-      if (error) throw error;
+      const data = await api.createCMSBanner(image);
       set((state) => ({
         galleryImages: [...state.galleryImages, data],
         loading: false
@@ -96,14 +85,7 @@ export const useCMSEnhancedStore = create<CMSEnhancedState>((set) => ({
   updateGalleryImage: async (id, image) => {
     set({ loading: true, error: null });
     try {
-      const { data, error } = await supabase
-        .from('gallery_images')
-        .update(image)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
+      const data = await api.updateCMSBanner(id, image);
       set((state) => ({
         galleryImages: state.galleryImages.map((img) =>
           img.id === id ? data : img
@@ -118,12 +100,7 @@ export const useCMSEnhancedStore = create<CMSEnhancedState>((set) => ({
   deleteGalleryImage: async (id) => {
     set({ loading: true, error: null });
     try {
-      const { error } = await supabase
-        .from('gallery_images')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      await api.deleteCMSBanner(id);
       set((state) => ({
         galleryImages: state.galleryImages.filter((img) => img.id !== id),
         loading: false
@@ -137,12 +114,7 @@ export const useCMSEnhancedStore = create<CMSEnhancedState>((set) => ({
   fetchContentPages: async () => {
     set({ loading: true, error: null });
     try {
-      const { data, error } = await supabase
-        .from('content_pages')
-        .select('*')
-        .order('page_key', { ascending: true });
-
-      if (error) throw error;
+      const data = await api.getCMSPages();
       set({ contentPages: data || [], loading: false });
     } catch (error: any) {
       set({ error: error.message, loading: false });
@@ -152,14 +124,7 @@ export const useCMSEnhancedStore = create<CMSEnhancedState>((set) => ({
   updateContentPage: async (id, page) => {
     set({ loading: true, error: null });
     try {
-      const { data, error } = await supabase
-        .from('content_pages')
-        .update(page)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
+      const data = await api.updateCMSPage(id, page);
       set((state) => ({
         contentPages: state.contentPages.map((p) => p.id === id ? data : p),
         loading: false
@@ -172,12 +137,7 @@ export const useCMSEnhancedStore = create<CMSEnhancedState>((set) => ({
   fetchFAQs: async () => {
     set({ loading: true, error: null });
     try {
-      const { data, error } = await supabase
-        .from('faqs')
-        .select('*')
-        .order('display_order', { ascending: true });
-
-      if (error) throw error;
+      const data = await api.getCMSFAQs();
       set({ faqs: data || [], loading: false });
     } catch (error: any) {
       set({ error: error.message, loading: false });
@@ -187,69 +147,50 @@ export const useCMSEnhancedStore = create<CMSEnhancedState>((set) => ({
   addFAQ: async (faq) => {
     set({ loading: true, error: null });
     try {
-      const { data, error } = await supabase
-        .from('faqs')
-        .insert([faq])
-        .select()
-        .single();
-
-      if (error) throw error;
+      const data = await api.createCMSFAQ(faq);
       set((state) => ({
         faqs: [...state.faqs, data],
         loading: false
       }));
     } catch (error: any) {
       set({ error: error.message, loading: false });
+      throw error;
     }
   },
 
   updateFAQ: async (id, faq) => {
     set({ loading: true, error: null });
     try {
-      const { data, error } = await supabase
-        .from('faqs')
-        .update(faq)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
+      const data = await api.updateCMSFAQ(id, faq);
       set((state) => ({
         faqs: state.faqs.map((f) => f.id === id ? data : f),
         loading: false
       }));
     } catch (error: any) {
       set({ error: error.message, loading: false });
+      throw error;
     }
   },
 
   deleteFAQ: async (id) => {
     set({ loading: true, error: null });
     try {
-      const { error } = await supabase
-        .from('faqs')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      await api.deleteCMSFAQ(id);
       set((state) => ({
         faqs: state.faqs.filter((f) => f.id !== id),
         loading: false
       }));
     } catch (error: any) {
       set({ error: error.message, loading: false });
+      throw error;
     }
   },
 
   fetchBlogPosts: async () => {
     set({ loading: true, error: null });
     try {
-      const { data, error } = await supabase
-        .from('blog_posts')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      // For now using Testimonials as placeholder for blogs if not separate
+      const data = await api.getCMSTestimonials();
       set({ blogPosts: data || [], loading: false });
     } catch (error: any) {
       set({ error: error.message, loading: false });
@@ -259,130 +200,99 @@ export const useCMSEnhancedStore = create<CMSEnhancedState>((set) => ({
   addBlogPost: async (post) => {
     set({ loading: true, error: null });
     try {
-      const { data, error } = await supabase
-        .from('blog_posts')
-        .insert([post])
-        .select()
-        .single();
-
-      if (error) throw error;
+      const data = await api.createCMSTestimonial(post as any);
       set((state) => ({
         blogPosts: [data, ...state.blogPosts],
         loading: false
       }));
     } catch (error: any) {
       set({ error: error.message, loading: false });
+      throw error;
     }
   },
 
   updateBlogPost: async (id, post) => {
     set({ loading: true, error: null });
     try {
-      const { data, error } = await supabase
-        .from('blog_posts')
-        .update(post)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
+      const data = await api.updateCMSTestimonial(id, post as any);
       set((state) => ({
         blogPosts: state.blogPosts.map((p) => p.id === id ? data : p),
         loading: false
       }));
     } catch (error: any) {
       set({ error: error.message, loading: false });
+      throw error;
     }
   },
 
   deleteBlogPost: async (id) => {
     set({ loading: true, error: null });
     try {
-      const { error } = await supabase
-        .from('blog_posts')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      await api.deleteCMSTestimonial(id);
       set((state) => ({
         blogPosts: state.blogPosts.filter((p) => p.id !== id),
         loading: false
       }));
     } catch (error: any) {
       set({ error: error.message, loading: false });
+      throw error;
     }
   },
 
-  uploadImage: async (file, bucket) => {
-    set({ loading: true, error: null });
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from(bucket)
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data } = supabase.storage
-        .from(bucket)
-        .getPublicUrl(filePath);
-
-      set({ loading: false });
-      return data.publicUrl;
-    } catch (error: any) {
-      set({ error: error.message, loading: false });
-      throw error;
-    }
+  uploadImage: async (file, _bucket) => {
+    // Mock image upload - in real app would use a cloud storage service
+    return URL.createObjectURL(file);
   },
 
   fetchSiteSettings: async () => {
     set({ loading: true, error: null });
     try {
-      const { data, error } = await supabase
-        .from('site_settings')
-        .select('*')
-        .order('category', { ascending: true });
-
-      if (error) throw error;
+      const data = await api.getCMSSettings();
       set({ siteSettings: data || [], loading: false });
     } catch (error: any) {
       set({ error: error.message, loading: false });
     }
   },
 
-  updateSiteSetting: async (id, value) => {
+  updateSiteSetting: async (idOrKey: string, value: string, type: string = 'text') => {
     set({ loading: true, error: null });
     try {
-      const { data, error } = await supabase
-        .from('site_settings')
-        .update({ value })
-        .eq('id', id)
-        .select()
-        .single();
+      const state = get() as CMSEnhancedState;
+      // Try to find by ID first, then by Key
+      let setting = state.siteSettings.find(s => s.id === idOrKey || s.key === idOrKey);
 
-      if (error) throw error;
-      set((state) => ({
-        siteSettings: state.siteSettings.map((s) => s.id === id ? data : s),
-        loading: false
-      }));
+      const key = setting ? setting.key : idOrKey;
+      const data = await api.updateCMSSetting(key, value, type);
+
+      set((state) => {
+        const index = state.siteSettings.findIndex(s => s.id === (setting?.id || data.id));
+        let newSettings = [...state.siteSettings];
+
+        if (index > -1) {
+          newSettings[index] = { ...newSettings[index], value: data.value };
+        } else {
+          newSettings.push(data);
+        }
+
+        return {
+          siteSettings: newSettings,
+          loading: false
+        };
+      });
     } catch (error: any) {
       set({ error: error.message, loading: false });
+      throw error;
     }
   },
 
   fetchProductCategories: async () => {
     set({ loading: true, error: null });
     try {
-      const { data, error } = await supabase
-        .from('product_categories')
-        .select('*')
-        .order('display_order', { ascending: true });
-
-      if (error) throw error;
-      set({ productCategories: data || [], loading: false });
+      const response = await fetch('/api/cms/categories', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      const data = await response.json();
+      set({ productCategories: data.data || [], loading: false });
     } catch (error: any) {
       set({ error: error.message, loading: false });
     }
@@ -391,70 +301,72 @@ export const useCMSEnhancedStore = create<CMSEnhancedState>((set) => ({
   addProductCategory: async (category) => {
     set({ loading: true, error: null });
     try {
-      const { data, error } = await supabase
-        .from('product_categories')
-        .insert([category])
-        .select()
-        .single();
-
-      if (error) throw error;
+      const response = await fetch('/api/cms/categories', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(category)
+      });
+      const data = await response.json();
       set((state) => ({
-        productCategories: [...state.productCategories, data],
+        productCategories: [...state.productCategories, data.data],
         loading: false
       }));
     } catch (error: any) {
       set({ error: error.message, loading: false });
+      throw error;
     }
   },
 
   updateProductCategory: async (id, category) => {
     set({ loading: true, error: null });
     try {
-      const { data, error } = await supabase
-        .from('product_categories')
-        .update(category)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
+      const response = await fetch(`/api/cms/categories/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(category)
+      });
+      const data = await response.json();
       set((state) => ({
-        productCategories: state.productCategories.map((c) => c.id === id ? data : c),
+        productCategories: state.productCategories.map((c) => c.id === id ? data.data : c),
         loading: false
       }));
     } catch (error: any) {
       set({ error: error.message, loading: false });
+      throw error;
     }
   },
 
   deleteProductCategory: async (id) => {
     set({ loading: true, error: null });
     try {
-      const { error } = await supabase
-        .from('product_categories')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      await fetch(`/api/cms/categories/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
       set((state) => ({
         productCategories: state.productCategories.filter((c) => c.id !== id),
         loading: false
       }));
     } catch (error: any) {
       set({ error: error.message, loading: false });
+      throw error;
     }
   },
 
   fetchProductTypes: async () => {
     set({ loading: true, error: null });
     try {
-      const { data, error } = await supabase
-        .from('product_types')
-        .select('*')
-        .order('display_order', { ascending: true });
-
-      if (error) throw error;
-      set({ productTypes: data || [], loading: false });
+      const response = await fetch('/api/cms/product-types', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+      const data = await response.json();
+      set({ productTypes: data.data || [], loading: false });
     } catch (error: any) {
       set({ error: error.message, loading: false });
     }
@@ -463,57 +375,61 @@ export const useCMSEnhancedStore = create<CMSEnhancedState>((set) => ({
   addProductType: async (type) => {
     set({ loading: true, error: null });
     try {
-      const { data, error } = await supabase
-        .from('product_types')
-        .insert([type])
-        .select()
-        .single();
-
-      if (error) throw error;
+      const response = await fetch('/api/cms/product-types', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(type)
+      });
+      const data = await response.json();
       set((state) => ({
-        productTypes: [...state.productTypes, data],
+        productTypes: [...state.productTypes, data.data],
         loading: false
       }));
     } catch (error: any) {
       set({ error: error.message, loading: false });
+      throw error;
     }
   },
 
   updateProductType: async (id, type) => {
     set({ loading: true, error: null });
     try {
-      const { data, error } = await supabase
-        .from('product_types')
-        .update(type)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
+      const response = await fetch(`/api/cms/product-types/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(type)
+      });
+      const data = await response.json();
       set((state) => ({
-        productTypes: state.productTypes.map((t) => t.id === id ? data : t),
+        productTypes: state.productTypes.map((t) => t.id === id ? data.data : t),
         loading: false
       }));
     } catch (error: any) {
       set({ error: error.message, loading: false });
+      throw error;
     }
   },
 
   deleteProductType: async (id) => {
     set({ loading: true, error: null });
     try {
-      const { error } = await supabase
-        .from('product_types')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      await fetch(`/api/cms/product-types/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
       set((state) => ({
         productTypes: state.productTypes.filter((t) => t.id !== id),
         loading: false
       }));
     } catch (error: any) {
       set({ error: error.message, loading: false });
+      throw error;
     }
   },
 }));

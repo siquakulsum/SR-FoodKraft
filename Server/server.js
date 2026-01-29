@@ -22,6 +22,9 @@ app.use('/admin/profile', profileRoutes);
 const inquiryRoutes = require('./routes/inquiryRoutes');
 app.use('/api/inquiries', inquiryRoutes);
 
+const cmsRoutes = require('./routes/cmsRoutes');
+app.use('/api/cms', cmsRoutes);
+
 // Test DB Connection
 app.get('/health', async (req, res) => {
     try {

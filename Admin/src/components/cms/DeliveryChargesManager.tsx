@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useSettingsStore } from '@/store/settings-store';
 import { Truck, MapPin, Clock, DollarSign, Plus, Trash2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface DeliveryZone {
   id: string;
@@ -17,39 +18,23 @@ interface DeliveryZone {
 
 export default function DeliveryChargesManager() {
   const { settings, updateSettings } = useSettingsStore();
+  const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
-  const [deliveryZones, setDeliveryZones] = useState<DeliveryZone[]>([
-    {
-      id: '1',
-      name: 'Within 5km',
-      description: 'Local delivery within 5 kilometers',
-      deliveryCharges: 50,
-      estimatedTime: '30-45 mins',
-      isActive: true,
-    },
-    {
-      id: '2',
-      name: '5-10km',
-      description: 'Extended delivery area',
-      deliveryCharges: 100,
-      estimatedTime: '45-60 mins',
-      isActive: true,
-    },
-    {
-      id: '3',
-      name: '10-15km',
-      description: 'Outer delivery zone',
-      deliveryCharges: 150,
-      estimatedTime: '60-90 mins',
-      isActive: true,
-    },
-  ]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [deliveryZones, setDeliveryZones] = useState<DeliveryZone[]>(settings.deliveryZones);
   const [newZone, setNewZone] = useState({
     name: '',
     description: '',
     deliveryCharges: '',
     estimatedTime: '',
   });
+
+  // Sync with store when settings change if not editing
+  useEffect(() => {
+    if (!isEditing) {
+      setDeliveryZones(settings.deliveryZones);
+    }
+  }, [settings.deliveryZones, isEditing]);
 
   const handleAddZone = () => {
     if (newZone.name && newZone.deliveryCharges) {
@@ -63,6 +48,10 @@ export default function DeliveryChargesManager() {
       };
       setDeliveryZones([...deliveryZones, zone]);
       setNewZone({ name: '', description: '', deliveryCharges: '', estimatedTime: '' });
+      toast({
+        title: "Zone Added",
+        description: "New delivery zone added to the list. Remember to save changes.",
+      });
     }
   };
 
@@ -76,13 +65,37 @@ export default function DeliveryChargesManager() {
     ));
   };
 
-  const handleSaveSettings = () => {
-    // Update global delivery charges based on the first active zone
-    const firstActiveZone = deliveryZones.find(zone => zone.isActive);
-    if (firstActiveZone) {
-      updateSettings({ deliveryCharges: firstActiveZone.deliveryCharges });
+  const handleSaveSettings = async () => {
+    setIsSaving(true);
+    try {
+      // Find the first active zone to set as default delivery charge if needed
+      // but mostly we want to save the entire zones array
+      const firstActiveZone = deliveryZones.find(zone => zone.isActive);
+
+      const updateData: any = {
+        deliveryZones: deliveryZones
+      };
+
+      if (firstActiveZone) {
+        updateData.deliveryCharges = firstActiveZone.deliveryCharges;
+      }
+
+      await updateSettings(updateData);
+
+      toast({
+        title: "Settings Saved",
+        description: "Delivery charges and zones have been updated successfully.",
+      });
+      setIsEditing(false);
+    } catch (error: any) {
+      toast({
+        title: "Save Failed",
+        description: error.message || "Failed to save delivery settings.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
     }
-    setIsEditing(false);
   };
 
   return (
@@ -95,10 +108,21 @@ export default function DeliveryChargesManager() {
         <div className="flex flex-col sm:flex-row gap-2">
           {isEditing ? (
             <>
-              <Button onClick={handleSaveSettings} className="bg-green-600 hover:bg-green-700 w-full sm:w-auto">
-                Save Changes
+              <Button
+                onClick={handleSaveSettings}
+                disabled={isSaving}
+                className="bg-green-600 hover:bg-green-700 w-full sm:w-auto min-w-[120px]"
+              >
+                {isSaving ? 'Saving...' : 'Save Changes'}
               </Button>
-              <Button variant="outline" onClick={() => setIsEditing(false)} className="w-full sm:w-auto">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDeliveryZones(settings.deliveryZones);
+                  setIsEditing(false);
+                }}
+                className="w-full sm:w-auto"
+              >
                 Cancel
               </Button>
             </>

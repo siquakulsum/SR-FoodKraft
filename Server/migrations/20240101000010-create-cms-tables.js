@@ -15,6 +15,7 @@ module.exports = {
             end_date: { type: Sequelize.DATE, allowNull: true },
             created_at: { allowNull: false, type: Sequelize.DATE, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
             updated_at: { allowNull: false, type: Sequelize.DATE, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
+            deleted_at: { type: Sequelize.DATE, allowNull: true },
         });
 
         // CMS Pages
@@ -28,6 +29,7 @@ module.exports = {
             is_published: { type: Sequelize.BOOLEAN, defaultValue: true },
             created_at: { allowNull: false, type: Sequelize.DATE, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
             updated_at: { allowNull: false, type: Sequelize.DATE, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
+            deleted_at: { type: Sequelize.DATE, allowNull: true },
         });
 
         // CMS FAQs
@@ -40,6 +42,7 @@ module.exports = {
             is_active: { type: Sequelize.BOOLEAN, defaultValue: true },
             created_at: { allowNull: false, type: Sequelize.DATE, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
             updated_at: { allowNull: false, type: Sequelize.DATE, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
+            deleted_at: { type: Sequelize.DATE, allowNull: true },
         });
 
         // CMS Testimonials
@@ -54,6 +57,7 @@ module.exports = {
             is_active: { type: Sequelize.BOOLEAN, defaultValue: true },
             created_at: { allowNull: false, type: Sequelize.DATE, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
             updated_at: { allowNull: false, type: Sequelize.DATE, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
+            deleted_at: { type: Sequelize.DATE, allowNull: true },
         });
 
         // CMS Settings
@@ -63,8 +67,10 @@ module.exports = {
             value: { type: Sequelize.TEXT, allowNull: false },
             type: { type: Sequelize.STRING, defaultValue: 'text' }, // text, image, boolean, json
             description: { type: Sequelize.TEXT, allowNull: true },
+            category: { type: Sequelize.STRING, allowNull: true },
             created_at: { allowNull: false, type: Sequelize.DATE, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
             updated_at: { allowNull: false, type: Sequelize.DATE, defaultValue: Sequelize.literal('CURRENT_TIMESTAMP') },
+            deleted_at: { type: Sequelize.DATE, allowNull: true },
         });
     },
 
