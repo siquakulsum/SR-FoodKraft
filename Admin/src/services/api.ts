@@ -667,5 +667,129 @@ export const api = {
             throw new Error(data.message || 'Failed to delete order');
         }
         return data;
+    },
+
+    // Payment API methods
+    getPaymentStats: async () => {
+        const response = await fetch('/api/payments/stats', {
+            headers: getHeaders(),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            if (response.status === 401) localStorage.removeItem('token');
+            throw new Error(data.message || 'Failed to fetch payment stats');
+        }
+        return data.data;
+    },
+
+    getPayments: async (params?: any) => {
+        const queryParams = new URLSearchParams();
+        if (params) {
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined && value !== null && value !== '' && value !== 'all') {
+                    // Map frontend filter keys to backend expectations if needed
+                    // Frontend 'modeFilter' -> params.payment_mode (if passed as payment_mode by caller)
+                    queryParams.append(key, String(value));
+                }
+            });
+        }
+
+        const response = await fetch(`/api/payments?${queryParams.toString()}`, {
+            headers: getHeaders(),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            if (response.status === 401) localStorage.removeItem('token');
+            throw new Error(data.message || 'Failed to fetch payments');
+        }
+
+        // Map backend response to frontend Payment interface
+        const payments = data.data.payments.map((p: any) => ({
+            id: p.id,
+            transaction_id: p.transaction_id,
+            order_id: p.order_id,
+            amount: p.amount,
+            status: p.status,
+            created_at: p.created_at,
+            // Map mismatched fields
+            payment_mode: p.payment_method,
+            customer_name: p.order?.user?.name || 'Walk-in Customer',
+            customer_id: p.order?.user?.id || '',
+        }));
+
+        return {
+            payments,
+            total: data.data.total,
+            totalPages: data.data.totalPages,
+            currentPage: data.data.currentPage
+        };
+    },
+
+    addPayment: async (paymentData: any) => {
+        // Map frontend fields to backend fields
+        const payload = {
+            ...paymentData,
+            payment_method: paymentData.payment_mode // Backend expects payment_method
+        };
+        const response = await fetch('/api/payments', {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to add payment');
+        return data.data;
+    },
+
+    updatePayment: async (id: string, updates: any) => {
+        const response = await fetch(`/api/payments/${id}`, {
+            method: 'PATCH',
+            headers: getHeaders(),
+            body: JSON.stringify(updates),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to update payment');
+        return data.data;
+    },
+
+    deletePayment: async (id: string) => {
+        const response = await fetch(`/api/payments/${id}`, {
+            method: 'DELETE',
+            headers: getHeaders(),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to delete payment');
+        return data;
+    },
+
+    exportPayments: async (params?: any) => {
+        const queryParams = new URLSearchParams();
+        if (params) {
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined && value !== null && value !== '' && value !== 'all') {
+                    queryParams.append(key, String(value));
+                }
+            });
+        }
+
+        const response = await fetch(`/api/payments/export?${queryParams.toString()}`, {
+            headers: getHeaders(),
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.message || 'Failed to export payments');
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `payments_export_${Date.now()}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
     }
 };

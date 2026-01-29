@@ -46,6 +46,9 @@ app.use('/api/menu-items', menuRoutes);
 const orderRoutes = require('./routes/orderRoutes');
 app.use('/api/orders', orderRoutes);
 
+const paymentRoutes = require('./routes/paymentRoutes');
+app.use('/api/payments', paymentRoutes);
+
 
 // Test DB Connection
 app.get('/health', async (req, res) => {

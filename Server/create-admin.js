@@ -9,9 +9,12 @@ async function createAdmin() {
         });
 
         if (existingAdmin) {
-            console.log('✓ Admin user already exists!');
-            console.log('Email:', existingAdmin.email);
-            console.log('Role:', existingAdmin.role);
+            console.log('✓ Admin user already exists! Updating password...');
+            const salt = await bcrypt.genSalt(10);
+            const password_hash = await bcrypt.hash('admin123', salt);
+            existingAdmin.password_hash = password_hash;
+            await existingAdmin.save();
+            console.log('✓ Admin password reset to admin123');
             process.exit(0);
         }
 

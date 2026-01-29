@@ -1,8 +1,8 @@
 const http = require('http');
 
 const postData = JSON.stringify({
-    email: 'admin@test.com',
-    password: 'test123'
+    email: 'admin@srfoodkraft.com',
+    password: 'admin123'
 });
 
 const options = {
