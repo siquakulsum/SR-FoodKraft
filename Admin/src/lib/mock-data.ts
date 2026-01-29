@@ -33,7 +33,7 @@ export const mockOrders: Order[] = [
   { id: '16', order_number: 'ORD016', customer_id: '4', customer_name: 'Sneha Gupta', total_amount: 767, subtotal: 650, gst_amount: 117, delivery_charges: 0, service_charges: 0, status: 'cancelled', order_type: 'pickup', delivery_address: '321 Brigade Road, Bangalore', items: [{ id: '25', order_id: '16', menu_item_id: '5', menu_item_name: 'Veg Biryani', quantity: 2, price: 250 }, { id: '26', order_id: '16', menu_item_id: '28', menu_item_name: 'Mango Lassi', quantity: 2, price: 80 }], created_at: '2025-09-17T14:30:00Z' },
   { id: '17', order_number: 'ORD017', customer_id: '2', customer_name: 'Priya Sharma', total_amount: 1062, subtotal: 900, gst_amount: 162, delivery_charges: 0, service_charges: 0, status: 'cancelled', order_type: 'delivery', delivery_address: '456 Park Street, Mumbai', items: [{ id: '27', order_id: '17', menu_item_id: '1', menu_item_name: 'Hyderabadi Mutton Biryani', quantity: 2, price: 450 }], created_at: '2025-09-16T11:20:00Z' },
   { id: '18', order_number: 'ORD018', customer_id: '8', customer_name: 'Neha Joshi', total_amount: 1416, subtotal: 1200, gst_amount: 216, delivery_charges: 0, service_charges: 0, status: 'cancelled', order_type: 'pickup', delivery_address: '258 Lal Darwaja, Jaipur', items: [{ id: '28', order_id: '18', menu_item_id: '3', menu_item_name: 'Hyderabadi Chicken Biryani', quantity: 2, price: 380 }, { id: '29', order_id: '18', menu_item_id: '12', menu_item_name: 'Dal Makhani', quantity: 1, price: 200 }, { id: '30', order_id: '18', menu_item_id: '25', menu_item_name: 'Gulab Jamun', quantity: 25, price: 8 }], created_at: '2025-09-15T16:45:00Z' },
-  
+
   // Today's Orders (2025-10-01) - Various statuses and times
   { id: '19', order_number: 'ORD019', customer_id: '1', customer_name: 'Rajesh Kumar', total_amount: 1416, subtotal: 1200, gst_amount: 216, delivery_charges: 0, service_charges: 0, status: 'pending', order_type: 'delivery', delivery_address: '123 MG Road, Delhi', items: [{ id: '31', order_id: '19', menu_item_id: '1', menu_item_name: 'Hyderabadi Mutton Biryani', quantity: 2, price: 450 }, { id: '32', order_id: '19', menu_item_id: '12', menu_item_name: 'Dal Makhani', quantity: 1, price: 200 }, { id: '33', order_id: '19', menu_item_id: '25', menu_item_name: 'Gulab Jamun', quantity: 25, price: 8 }], created_at: '2025-10-01T08:30:00Z' },
   { id: '20', order_number: 'ORD020', customer_id: '2', customer_name: 'Priya Sharma', total_amount: 1003, subtotal: 850, gst_amount: 153, delivery_charges: 0, service_charges: 0, status: 'confirmed', order_type: 'pickup', delivery_address: '456 Park Street, Mumbai', items: [{ id: '34', order_id: '20', menu_item_id: '2', menu_item_name: 'Chicken Biryani', quantity: 2, price: 350 }, { id: '35', order_id: '20', menu_item_id: '18', menu_item_name: 'Butter Naan', quantity: 20, price: 25 }], created_at: '2025-10-01T09:15:00Z' },
@@ -64,18 +64,8 @@ export const mockCMSPages: CMSPage[] = [
   { id: '4', slug: 'contact', title: 'Contact Us', content: '<h1>Contact Us</h1><p>Email: contact@srfoodkraft.com<br>Phone: +91 1234567890<br>Address: 123 Main Street, New Delhi<br><br>For catering inquiries and bulk orders, please call us directly for personalized service.</p>', updated_at: '2025-09-01T00:00:00Z' },
 ];
 
-export const mockPayments: Payment[] = [
-  { id: '1', transaction_id: 'TXN001', order_id: '1', customer_id: '1', customer_name: 'Rajesh Kumar', amount: 750, payment_mode: 'upi', status: 'completed', created_at: '2025-09-28T10:05:00Z' },
-  { id: '2', transaction_id: 'TXN002', order_id: '2', customer_id: '2', customer_name: 'Priya Sharma', amount: 400, payment_mode: 'upi', status: 'completed', created_at: '2025-09-29T12:35:00Z' },
-  { id: '3', transaction_id: 'TXN003', order_id: '3', customer_id: '3', customer_name: 'Amit Patel', amount: 530, payment_mode: 'upi', status: 'completed', created_at: '2025-09-29T14:20:00Z' },
-  { id: '4', transaction_id: 'TXN004', order_id: '4', customer_id: '5', customer_name: 'Vikram Singh', amount: 700, payment_mode: 'upi', status: 'pending', created_at: '2025-09-30T09:05:00Z' },
-  { id: '5', transaction_id: 'TXN005', order_id: '5', customer_id: '6', customer_name: 'Ananya Reddy', amount: 280, payment_mode: 'cash', status: 'pending', created_at: '2025-09-30T11:50:00Z' },
-  { id: '6', transaction_id: 'TXN006', order_id: '6', customer_id: '7', customer_name: 'Karan Mehta', amount: 180, payment_mode: 'upi', status: 'completed', created_at: '2025-09-27T15:35:00Z' },
-  { id: '7', transaction_id: 'TXN007', order_id: '7', customer_id: '8', customer_name: 'Neha Joshi', amount: 230, payment_mode: 'upi', status: 'completed', created_at: '2025-09-26T08:25:00Z' },
-  { id: '8', transaction_id: 'TXN008', order_id: '8', customer_id: '9', customer_name: 'Rahul Verma', amount: 640, payment_mode: 'cash', status: 'failed', created_at: '2025-09-25T13:15:00Z' },
-  { id: '9', transaction_id: 'TXN009', order_id: '9', customer_id: '10', customer_name: 'Pooja Kapoor', amount: 400, payment_mode: 'cash', status: 'completed', created_at: '2025-09-24T16:55:00Z' },
-  { id: '10', transaction_id: 'TXN010', order_id: '10', customer_id: '1', customer_name: 'Rajesh Kumar', amount: 600, payment_mode: 'upi', status: 'completed', created_at: '2025-09-23T12:05:00Z' },
-];
+// Mock payments removed as we are using real API
+export const mockPayments: Payment[] = [];
 
 export const mockInquiries: Inquiry[] = [
   {
