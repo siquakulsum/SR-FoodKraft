@@ -52,6 +52,15 @@ app.use('/api/orders', orderRoutes);
 const paymentRoutes = require('./routes/paymentRoutes');
 app.use('/api/payments', paymentRoutes);
 
+const offersRoutes = require('./modules/offers/offersRoutes');
+app.use('/api/offers', offersRoutes);
+
+const dashboardRoutes = require('./routes/dashboardRoutes');
+app.use('/api/dashboard', dashboardRoutes);
+
+const { startCron } = require('./modules/offers/offersCron');
+startCron();
+
 
 
 // Test DB Connection

@@ -526,8 +526,8 @@ export const api = {
         if (!response.ok) throw new Error(data.message || 'Failed to fetch customers');
 
         // Map backend fields
-        if (data.data) {
-            data.data = data.data.map((customer: any) => ({
+        if (data.data && data.data.customers) {
+            data.data.customers = data.data.customers.map((customer: any) => ({
                 ...customer,
                 created_at: customer.createdAt || customer.created_at,
                 updated_at: customer.updatedAt || customer.updated_at

@@ -1,5 +1,0 @@
-Testing FAQ query...
-Found 3 FAQs
-- who am i (ID: a4009a65-d231-479f-a9d6-af96b2bb0d06)
-- dummy  (ID: cc21ad09-08b2-44e8-918f-1a3c8745c5bc)
-- new dummy (ID: e1d52721-d246-47d8-9426-369e376b002a)

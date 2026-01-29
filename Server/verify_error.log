@@ -1,8 +1,0 @@
-Body is unusable: Body has already been read
-TypeError: Body is unusable: Body has already been read
-    at consumeBody (node:internal/deps/undici/undici:5656:15)
-    at _Response.text (node:internal/deps/undici/undici:5606:18)
-    at fetchJson (C:\Users\siqua\Downloads\Sr FoodKraft - 24102025\Main\Server\verify_orders.js:138:34)
-    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
-    at async runVerification (C:\Users\siqua\Downloads\Sr FoodKraft - 24102025\Main\Server\verify_orders.js:145:27)
-{}

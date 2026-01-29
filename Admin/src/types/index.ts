@@ -90,6 +90,8 @@ export interface Offer {
   valid_from: string;
   valid_to: string;
   is_active: boolean;
+  min_order_amount?: number;
+  max_discount_amount?: number;
   created_at: string;
 }
 

@@ -1,14 +1,10 @@
-import { useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MetricsCard from '@/components/MetricsCard';
-import { useOrderStore } from '@/store/order-store';
-import { useCustomerStore } from '@/store/customer-store';
-import { usePaymentStore } from '@/store/payment-store';
-import { useMenuStore } from '@/store/menu-store';
-import { useInquiryStore } from '@/store/inquiry-store';
+import { dashboardApi } from '@/services/dashboardApi';
 import { Users, ShoppingBag, DollarSign, UtensilsCrossed, TrendingUp, Clock, CheckCircle, Package, Truck, AlertCircle, Plus, Calendar, ChefHat, MessageSquare, Phone, Mail } from 'lucide-react';
 
-const statusConfig = {
+const statusConfig: any = {
   pending: {
     color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200 dark:border-amber-800',
     icon: Clock,
@@ -43,118 +39,97 @@ const statusConfig = {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const orders = useOrderStore((state) => state.orders);
-  const { stats, fetchStats: fetchCustomerStats, customers } = useCustomerStore();
-  const payments = usePaymentStore((state) => state.payments);
-  const menuItems = useMenuStore((state) => state.menuItems);
-  const inquiries = useInquiryStore((state) => state.inquiries);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<any>({
+    stats: {
+      totalOrders: 0,
+      totalRevenue: 0,
+      totalCustomers: 0,
+      totalInquiries: 0,
+      todayRevenue: 0,
+      pendingOrders: 0,
+      newCustomersToday: 0,
+      pendingPayments: 0
+    },
+    recentOrders: [],
+    recentInquiries: [],
+    charts: {
+      ordersByStatus: [],
+      ordersByType: [],
+      salesLast7Days: [],
+      topSellingItems: []
+    }
+  });
 
   useEffect(() => {
-    fetchCustomerStats();
-  }, [fetchCustomerStats]);
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const dashboardData = await dashboardApi.getDashboardData();
+        setData(dashboardData);
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
-  const totalRevenue = payments
-    .filter((p) => p.status === 'completed')
-    .reduce((sum, p) => sum + p.amount, 0);
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
 
-  const recentOrders = useMemo(() =>
-    orders
-      .slice()
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .slice(0, 5),
-    [orders]
-  );
+  if (error) {
+    return (
+      <div className="text-center text-red-500 py-10">
+        <p>Error loading dashboard: {error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
-  const recentInquiries = useMemo(() =>
-    inquiries
-      .slice()
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .slice(0, 5),
-    [inquiries]
-  );
+  const { stats, recentOrders, recentInquiries, charts } = data;
 
-  const salesData = useMemo(() => {
-    const last7Days = Array.from({ length: 7 }, (_, i) => {
-      const date = new Date();
-      date.setDate(date.getDate() - (6 - i));
-      return date.toISOString().split('T')[0];
-    });
-
-    return last7Days.map((date) => {
-      const dayOrders = orders.filter((o) => {
-        if (!o.created_at) return false;
-        const orderDate = o.created_at.split('T')[0];
-        return orderDate === date;
-      });
-      const dayRevenue = dayOrders.reduce((sum, o) => sum + o.total_amount, 0);
-      return {
-        date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        revenue: dayRevenue,
-        orders: dayOrders.length,
-      };
-    });
-  }, [orders]);
-
-  const maxRevenue = Math.max(...salesData.map((d) => d.revenue), 1);
-
-  const ordersByStatus = {
-    pending: orders.filter((o) => o.status === 'pending').length,
-    confirmed: orders.filter((o) => o.status === 'confirmed').length,
-    preparing: orders.filter((o) => o.status === 'preparing').length,
-    out_for_delivery: orders.filter((o) => o.status === 'out_for_delivery').length,
-    delivered: orders.filter((o) => o.status === 'delivered').length,
-    cancelled: orders.filter((o) => o.status === 'cancelled').length,
-  };
-
-  const ordersByType = {
-    pickup: orders.filter((o) => o.order_type === 'pickup').length,
-    delivery: orders.filter((o) => o.order_type === 'delivery').length,
-  };
-
-  // Today's metrics - Using 2025-10-01 for demo purposes
-  const today = '2025-10-01';
-  const todayOrders = orders.filter(order => order.created_at.startsWith(today));
-  const todayRevenue = todayOrders.reduce((sum, order) => sum + order.total_amount, 0);
-  const pendingOrders = orders.filter(order => order.status === 'pending').length;
-  const newCustomersToday = customers.filter(customer =>
-    customer.created_at.startsWith(today)
-  ).length;
-
-  // Top selling items
-  const itemSales = orders.reduce((acc, order) => {
-    order.items.forEach(item => {
-      acc[item.menu_item_id] = (acc[item.menu_item_id] || 0) + item.quantity;
-    });
+  // Transform Orders by Status for easy lookup
+  const ordersByStatusMap = charts.ordersByStatus.reduce((acc: any, curr: any) => {
+    acc[curr.status] = parseInt(curr.count);
     return acc;
-  }, {} as Record<string, number>);
+  }, {});
 
-  const topSellingItems = Object.entries(itemSales)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 3)
-    .map(([itemId, quantity]) => {
-      const item = menuItems.find(m => m.id === itemId);
-      return { ...item, id: item?.id || itemId, totalSold: quantity };
-    })
-    .filter(Boolean);
+  // Add default 0 for missing statuses
+  Object.keys(statusConfig).forEach(status => {
+    if (!ordersByStatusMap[status]) ordersByStatusMap[status] = 0;
+  });
 
-  // Delivery vs Pickup ratio
-  const totalOrders = orders.length;
-  const deliveryRatio = totalOrders > 0 ? (ordersByType.delivery / totalOrders * 100).toFixed(1) : '0';
-  const pickupRatio = totalOrders > 0 ? (ordersByType.pickup / totalOrders * 100).toFixed(1) : '0';
+  // Transform Orders by Type
+  const ordersByTypeMap = charts.ordersByType.reduce((acc: any, curr: any) => {
+    acc[curr.order_type] = parseInt(curr.count);
+    return acc;
+  }, { pickup: 0, delivery: 0 });
 
-  // Pending payments (assuming failed payments)
-  const pendingPayments = payments.filter(payment => payment.status === 'pending').length;
+  const totalOrdersCount = stats.totalOrders; // Using stats total which matches DB count
+  const deliveryRatio = totalOrdersCount > 0 ? (ordersByTypeMap.delivery / totalOrdersCount * 100).toFixed(1) : '0';
+  const pickupRatio = totalOrdersCount > 0 ? (ordersByTypeMap.pickup / totalOrdersCount * 100).toFixed(1) : '0';
 
-  // Expired offers (assuming we have offers with expiry dates)
-  // const todayDate = new Date();
-  // const expiredOffers = []; // This would come from an offers store if available
+  const maxRevenue = Math.max(...charts.salesLast7Days.map((d: any) => parseFloat(d.revenue)), 1);
 
-  const getOrderItemImages = (orderItems: typeof orders[0]['items']) => {
+  // Helper for item images
+  const getOrderItemImages = (orderItems: any[]) => {
     return orderItems
       .slice(0, 3)
       .map((item) => {
-        const menuItem = menuItems.find((m) => m.id === item.menu_item_id);
-        return menuItem?.image_url || 'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=100';
+        return item.menu_item?.image_url || 'https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=100';
       });
   };
 
@@ -174,28 +149,28 @@ export default function Dashboard() {
           title="Total Customers"
           value={stats.totalCustomers}
           icon={Users}
-          trend={{ value: '8% from last month', positive: true }}
+          trend={{ value: 'View details', positive: true }}
           onClick={() => navigate('/admin/users')}
         />
         <MetricsCard
           title="Total Orders"
-          value={orders.length}
+          value={stats.totalOrders}
           icon={ShoppingBag}
-          trend={{ value: '12% from last month', positive: true }}
+          trend={{ value: 'View details', positive: true }}
           onClick={() => navigate('/admin/orders')}
         />
         <MetricsCard
           title="Total Revenue"
-          value={`₹${stats.totalRevenue > 0 ? stats.totalRevenue.toLocaleString() : totalRevenue.toLocaleString()}`}
+          value={`₹${stats.totalRevenue.toLocaleString()}`}
           icon={DollarSign}
-          trend={{ value: '15% from last month', positive: true }}
+          trend={{ value: 'View details', positive: true }}
           onClick={() => navigate('/admin/payments')}
         />
         <MetricsCard
-          title="Menu Items"
-          value={menuItems.length}
-          icon={UtensilsCrossed}
-          onClick={() => navigate('/admin/menu')}
+          title="Total Inquiries"
+          value={stats.totalInquiries}
+          icon={MessageSquare}
+          onClick={() => navigate('/admin/inquiries')}
         />
       </div>
 
@@ -237,76 +212,11 @@ export default function Dashboard() {
               <Calendar className="w-6 h-6" />
             </div>
             <div className="text-left">
-              <h4 className="font-semibold text-slate-900 dark:text-white">View Today's Schedule</h4>
-              <p className="text-sm text-slate-600 dark:text-slate-400">Daily operations</p>
+              <h4 className="font-semibold text-slate-900 dark:text-white">View Orders</h4>
+              <p className="text-sm text-slate-600 dark:text-slate-400">Manage operations</p>
             </div>
           </button>
         </div>
-      </div>
-
-      {/* Today's Schedule */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-purple-500" />
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Today's Schedule</h3>
-          </div>
-          <span className="text-sm text-slate-500 dark:text-slate-400">
-            {todayOrders.length} orders today
-          </span>
-        </div>
-
-        {todayOrders.length > 0 ? (
-          <div className="space-y-3">
-            {todayOrders.map((order) => {
-              const StatusIcon = statusConfig[order.status].icon;
-              const customer = customers.find(c => c.id === order.customer_id);
-              return (
-                <div
-                  key={order.id}
-                  onClick={() => navigate(`/admin/orders?openOrder=${order.id}`)}
-                  className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600 cursor-pointer transition-colors duration-200 hover:shadow-md"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`p-2 rounded-lg ${statusConfig[order.status].color}`}>
-                      <StatusIcon className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-slate-900 dark:text-white">{order.order_number}</p>
-                      <p className="text-sm text-slate-600 dark:text-slate-400">{order.customer_name}</p>
-                      {customer && (
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-slate-500 dark:text-slate-400">
-                            📞 {customer.phone}
-                          </span>
-                          {customer.email && (
-                            <span className="text-xs text-slate-500 dark:text-slate-400">
-                              ✉️ {customer.email}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-slate-900 dark:text-white">₹{order.total_amount}</p>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                      {order.order_type === 'delivery' ? 'Delivery' : 'Pickup'}
-                    </p>
-                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                      Click to view details
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <Calendar className="w-12 h-12 text-slate-400 dark:text-slate-500 mx-auto mb-4" />
-            <p className="text-slate-500 dark:text-slate-400">No orders scheduled for today</p>
-          </div>
-        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -316,47 +226,42 @@ export default function Dashboard() {
             <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Sales Overview (Last 7 Days)</h3>
           </div>
           <div className="space-y-4">
-            {salesData.map((day, index) => (
+            {charts.salesLast7Days.map((day: any, index: number) => (
               <div key={index} className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-600 dark:text-slate-400">{day.date}</span>
+                  <span className="text-slate-600 dark:text-slate-400">{new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                   <div className="flex items-center gap-4">
-                    <span className="text-slate-500 dark:text-slate-400">{day.orders} orders</span>
-                    <span className="font-semibold text-slate-900 dark:text-white">₹{day.revenue.toLocaleString()}</span>
+                    <span className="text-slate-500 dark:text-slate-400">{day.count} orders</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">₹{parseFloat(day.revenue).toLocaleString()}</span>
                   </div>
                 </div>
                 <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
                   <div
                     className="h-full bg-gradient-to-r from-gold-500 to-gold-500/80 rounded-full transition-all duration-500"
-                    style={{ width: `${(day.revenue / maxRevenue) * 100}%` }}
+                    style={{ width: `${(parseFloat(day.revenue) / maxRevenue) * 100}%` }}
                   />
                 </div>
               </div>
             ))}
-          </div>
-          <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-600 dark:text-slate-400">7-Day Total</span>
-              <span className="text-xl font-bold text-slate-900 dark:text-white">
-                ₹{salesData.reduce((sum, d) => sum + d.revenue, 0).toLocaleString()}
-              </span>
-            </div>
+            {charts.salesLast7Days.length === 0 && (
+              <p className="text-center text-slate-500 py-4">No recent sales</p>
+            )}
           </div>
         </div>
 
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
           <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-6">Orders by Status</h3>
           <div className="space-y-3">
-            {Object.entries(ordersByStatus).map(([status, count]) => {
-              const config = statusConfig[status as keyof typeof statusConfig];
-              const IconComponent = config.icon;
+            {Object.entries(ordersByStatusMap).map(([status, count]: [string, any]) => {
+              const config = statusConfig[status];
+              const IconComponent = config?.icon || AlertCircle;
 
               return (
                 <div key={status} className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 ${config.color}`}>
+                    <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 ${config?.color}`}>
                       <IconComponent className="w-3 h-3" />
-                      <span>{config.label}</span>
+                      <span>{config?.label || status}</span>
                     </div>
                   </div>
                   <span className="text-lg font-semibold text-slate-900 dark:text-white">
@@ -371,7 +276,7 @@ export default function Dashboard() {
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
           <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-6">Orders by Type</h3>
           <div className="space-y-3">
-            {Object.entries(ordersByType).map(([type, count]) => {
+            {Object.entries(ordersByTypeMap).map(([type, count]: [string, any]) => {
               const isDelivery = type === 'delivery';
               const color = isDelivery
                 ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800'
@@ -402,7 +307,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Today's Revenue</p>
-              <p className="text-2xl font-bold text-slate-900 dark:text-white">₹{todayRevenue.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-white">₹{stats.todayRevenue.toLocaleString()}</p>
             </div>
             <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-full">
               <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400" />
@@ -414,7 +319,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Pending Orders</p>
-              <p className="text-2xl font-bold text-slate-900 dark:text-white">{pendingOrders}</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.pendingOrders}</p>
             </div>
             <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-full">
               <Clock className="w-6 h-6 text-amber-600 dark:text-amber-400" />
@@ -425,8 +330,8 @@ export default function Dashboard() {
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-400">New Customers</p>
-              <p className="text-2xl font-bold text-slate-900 dark:text-white">{newCustomersToday}</p>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400">New & Active Customers</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.newCustomersToday}</p>
             </div>
             <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full">
               <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
@@ -438,7 +343,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Pending Payments</p>
-              <p className="text-2xl font-bold text-slate-900 dark:text-white">{pendingPayments}</p>
+              <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.pendingPayments}</p>
             </div>
             <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-full">
               <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
@@ -453,20 +358,25 @@ export default function Dashboard() {
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
           <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-6">Top Selling Items</h3>
           <div className="space-y-4">
-            {topSellingItems.length > 0 ? (
-              topSellingItems.map((item, index) => (
-                <div key={item?.id} className="flex items-center justify-between">
+            {charts.topSellingItems.length > 0 ? (
+              charts.topSellingItems.map((item: any, index: number) => (
+                <div key={item.menu_item_id} className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 bg-gold-100 dark:bg-gold-900/30 rounded-full flex items-center justify-center">
                       <span className="text-sm font-bold text-gold-600 dark:text-gold-400">#{index + 1}</span>
                     </div>
+                    {item.menu_item?.image_url && (
+                      <img src={item.menu_item.image_url} alt={item.menu_item_name} className="w-10 h-10 rounded-full object-cover" />
+                    )}
                     <div>
-                      <p className="font-medium text-slate-900 dark:text-white">{item?.name}</p>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">₹{item?.price}</p>
+                      <p className="font-medium text-slate-900 dark:text-white">{item.menu_item_name}</p>
+                      {item.menu_item?.price && (
+                        <p className="text-sm text-slate-500 dark:text-slate-400">₹{item.menu_item.price}</p>
+                      )}
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-slate-900 dark:text-white">{item?.totalSold} sold</p>
+                    <p className="font-semibold text-slate-900 dark:text-white">{item.totalSold} sold</p>
                   </div>
                 </div>
               ))
@@ -487,7 +397,7 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <p className="font-medium text-slate-900 dark:text-white">Delivery</p>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">{ordersByType.delivery} orders</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">{ordersByTypeMap.delivery} orders</p>
                 </div>
               </div>
               <div className="text-right">
@@ -509,7 +419,7 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <p className="font-medium text-slate-900 dark:text-white">Pickup</p>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">{ordersByType.pickup} orders</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">{ordersByTypeMap.pickup} orders</p>
                 </div>
               </div>
               <div className="text-right">
@@ -530,9 +440,8 @@ export default function Dashboard() {
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
         <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-6">Recent Orders</h3>
         <div className="space-y-4">
-          {recentOrders.map((order) => {
+          {recentOrders.map((order: any) => {
             const itemImages = getOrderItemImages(order.items);
-            const customer = customers.find(c => c.id === order.customer_id);
             return (
               <div
                 key={order.id}
@@ -540,7 +449,7 @@ export default function Dashboard() {
                 className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-900 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer hover:shadow-md"
               >
                 <div className="flex -space-x-2">
-                  {itemImages.map((img, idx) => (
+                  {itemImages.map((img: string, idx: number) => (
                     <img
                       key={idx}
                       src={img}
@@ -557,40 +466,33 @@ export default function Dashboard() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <h4 className="font-semibold text-slate-900 dark:text-white">
-                      #{order.order_number}
+                      #{order.order_number || order.id.slice(0, 8)}
                     </h4>
                     {(() => {
                       const config = statusConfig[order.status];
-                      const IconComponent = config.icon;
+                      const IconComponent = config?.icon || AlertCircle;
                       return (
-                        <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border ${config.color}`}>
+                        <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border ${config?.color}`}>
                           <IconComponent className="w-3 h-3" />
-                          <span>{config.label}</span>
+                          <span>{config?.label || order.status}</span>
                         </div>
                       );
                     })()}
                   </div>
                   <p className="text-sm text-slate-600 dark:text-slate-400">
-                    {order.customer_name} • {order.items.length} items
+                    {order.user?.name || order.customer_name || 'Guest'} • {order.items.length} items
                   </p>
-                  {customer && (
-                    <div className="flex items-center gap-3 mt-1">
-                      {customer.phone && (
-                        <span className="text-xs text-slate-500 dark:text-slate-400">
-                          📞 {customer.phone}
-                        </span>
-                      )}
-                      {customer.email && (
-                        <span className="text-xs text-slate-500 dark:text-slate-400">
-                          ✉️ {customer.email}
-                        </span>
-                      )}
-                    </div>
-                  )}
+                  <div className="flex items-center gap-3 mt-1">
+                    {(order.user?.phone) && (
+                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                        📞 {order.user.phone}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="text-right">
                   <div className="text-lg font-bold text-slate-900 dark:text-white">
-                    ₹{order.total_amount.toLocaleString()}
+                    ₹{order.total_amount?.toLocaleString() || 0}
                   </div>
                   <div className="text-xs text-slate-500 dark:text-slate-400">
                     {new Date(order.created_at).toLocaleDateString()}
@@ -602,6 +504,7 @@ export default function Dashboard() {
               </div>
             );
           })}
+          {recentOrders.length === 0 && <p className="text-center text-slate-500 py-6">No recent orders</p>}
         </div>
       </div>
 
@@ -618,14 +521,14 @@ export default function Dashboard() {
         </div>
         <div className="space-y-4">
           {recentInquiries.length > 0 ? (
-            recentInquiries.map((inquiry) => {
-              const priorityColors = {
+            recentInquiries.map((inquiry: any) => {
+              const priorityColors: any = {
                 low: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border-green-200 dark:border-green-800',
                 medium: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800',
                 high: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800',
               };
 
-              const statusColors = {
+              const statusColors: any = {
                 new: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800',
                 contacted: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 border-purple-200 dark:border-purple-800',
                 quoted: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300 border-orange-200 dark:border-orange-800',
@@ -648,7 +551,7 @@ export default function Dashboard() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <h4 className="font-semibold text-slate-900 dark:text-white">
-                        {inquiry.full_name}
+                        {inquiry.full_name || inquiry.name}
                       </h4>
                       <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border ${statusColors[inquiry.status]}`}>
                         {inquiry.status.charAt(0).toUpperCase() + inquiry.status.slice(1)}
@@ -679,13 +582,13 @@ export default function Dashboard() {
                   </div>
 
                   <div className="text-right">
-                    {inquiry.quote_amount && (
+                    {inquiry.quote_amount > 0 && (
                       <div className="text-lg font-bold text-slate-900 dark:text-white">
                         ₹{inquiry.quote_amount.toLocaleString()}
                       </div>
                     )}
                     <div className="text-xs text-slate-500 dark:text-slate-400">
-                      {new Date(inquiry.created_at).toLocaleDateString()}
+                      {new Date(inquiry.created_at || inquiry.createdAt).toLocaleDateString()}
                     </div>
                     <div className="text-xs text-slate-400 dark:text-slate-500 mt-1">
                       Click to view
