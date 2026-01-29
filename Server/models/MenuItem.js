@@ -101,6 +101,7 @@ module.exports = (sequelize) => {
         MenuItem.hasMany(models.OrderItem, { foreignKey: 'menu_item_id' });
         MenuItem.hasMany(models.UserFavorite, { foreignKey: 'menu_item_id' });
         MenuItem.hasMany(models.Review, { foreignKey: 'menu_item_id' });
+        MenuItem.hasMany(models.MenuItemImage, { foreignKey: 'menu_item_id', as: 'images' });
     };
 
     return MenuItem;

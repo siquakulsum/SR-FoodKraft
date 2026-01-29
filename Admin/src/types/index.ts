@@ -57,8 +57,17 @@ export interface Order {
   status: 'pending' | 'confirmed' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled';
   order_type: 'pickup' | 'delivery';
   delivery_address: string;
+  delivery_address_json?: any;
   items: OrderItem[];
   created_at: string;
+  user?: {
+    name: string;
+    email: string;
+    phone: string;
+    avatar_url?: string;
+  };
+  history?: any[];
+  special_instructions?: string;
 }
 
 export interface OrderItem {
@@ -68,6 +77,9 @@ export interface OrderItem {
   menu_item_name: string;
   quantity: number;
   price: number;
+  unit_price?: number;
+  unit_type?: string;
+  special_instructions?: string;
 }
 
 export interface Offer {
@@ -96,8 +108,8 @@ export interface Payment {
   customer_id: string;
   customer_name: string;
   amount: number;
-  payment_mode: 'cash' | 'upi';
-  status: 'pending' | 'completed' | 'failed';
+  payment_mode: 'cash' | 'upi' | 'card' | 'netbanking' | 'cod';
+  status: 'pending' | 'completed' | 'failed' | 'refunded';
   created_at: string;
 }
 

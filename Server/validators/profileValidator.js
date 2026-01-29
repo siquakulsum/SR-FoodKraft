@@ -1,9 +1,10 @@
 const Joi = require('joi');
 
 const updateProfileSchema = Joi.object({
-    name: Joi.string().min(2).max(100).required(),
-    email: Joi.string().email().required(),
-    phone: Joi.string().pattern(/^[0-9]+$/).min(10).max(15).required(),
+    name: Joi.string().min(2).max(100).optional(),
+    email: Joi.string().email().optional(),
+    phone: Joi.string().pattern(/^[0-9]+$/).min(10).max(15).optional(),
+    avatar_url: Joi.string().allow(null, '').optional(),
 });
 
 const validate = (schema) => (req, res, next) => {

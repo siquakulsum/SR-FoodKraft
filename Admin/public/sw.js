@@ -1,4 +1,4 @@
-const CACHE_NAME = 'foodkraft-admin-v3';
+const CACHE_NAME = 'foodkraft-admin-v5';
 const urlsToCache = [
   '/',
   '/admin/dashboard',
@@ -32,6 +32,17 @@ self.addEventListener('install', (event) => {
 
 // Fetch event - serve from cache when offline
 self.addEventListener('fetch', (event) => {
+  // Skip caching for API requests and non-GET requests
+  const url = new URL(event.request.url);
+  const isApiRequest = url.pathname.startsWith('/api/');
+  const isGetRequest = event.request.method === 'GET';
+
+  // Don't cache API requests or non-GET requests
+  if (isApiRequest || !isGetRequest) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then((response) => {

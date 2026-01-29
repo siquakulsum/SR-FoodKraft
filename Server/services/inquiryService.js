@@ -27,13 +27,38 @@ const mapFieldsToUi = (inquiry) => {
 
     const data = inquiry.toJSON ? inquiry.toJSON() : inquiry;
 
+    // Robust timestamp extraction
+    // Check: 1. data properties (toJSON output)
+    //        2. inquiry instance properties
+    //        3. inquiry.dataValues (Sequelize internals)
+    const createdAt = data.createdAt ||
+        data.created_at ||
+        inquiry.createdAt ||
+        inquiry.created_at ||
+        (inquiry.dataValues && inquiry.dataValues.createdAt) ||
+        (inquiry.dataValues && inquiry.dataValues.created_at);
+
+    const updatedAt = data.updatedAt ||
+        data.updated_at ||
+        inquiry.updatedAt ||
+        inquiry.updated_at ||
+        (inquiry.dataValues && inquiry.dataValues.updatedAt) ||
+        (inquiry.dataValues && inquiry.dataValues.updated_at);
+
     return {
         ...data,
         full_name: data.name,
         additional_details: data.message,
         // Keep original fields for backward compatibility
         name: data.name,
-        message: data.message
+        message: data.message,
+
+        // preserve timestamps for export (normalized)
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+        // Also ensure snake_case variants exist
+        created_at: createdAt,
+        updated_at: updatedAt
     };
 };
 
@@ -327,8 +352,9 @@ const exportInquiriesData = async (filters) => {
         'Priority': inquiry.priority,
         'Quote Amount': inquiry.quote_amount || 0,
         'Assigned To': inquiry.assignedUser?.name || 'Unassigned',
-        'Created At': inquiry.created_at,
-        'Updated At': inquiry.updated_at
+        'Created At': inquiry.createdAt,
+        'Updated At': inquiry.updatedAt
+
     }));
 
     return exportData;

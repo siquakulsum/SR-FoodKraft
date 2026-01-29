@@ -480,5 +480,447 @@ export const api = {
         if (!response.ok) throw new Error(data.message || 'Failed to update setting');
         return data.data;
     },
+
+    // Customer API methods
+    getCustomerStats: async () => {
+        const [total, active, blocked, revenue] = await Promise.all([
+            fetch('/api/customers/stats/total', { headers: getHeaders() }).then(r => r.json()),
+            fetch('/api/customers/stats/active', { headers: getHeaders() }).then(r => r.json()),
+            fetch('/api/customers/stats/blocked', { headers: getHeaders() }).then(r => r.json()),
+            fetch('/api/customers/stats/revenue', { headers: getHeaders() }).then(r => r.json())
+        ]);
+
+        return {
+            totalCustomers: total.data?.total || 0,
+            activeCustomers: active.data?.active || 0,
+            blockedCustomers: blocked.data?.blocked || 0,
+            totalRevenue: revenue.data?.revenue || 0
+        };
+    },
+
+    getCustomers: async (params?: any) => {
+        const queryParams = new URLSearchParams();
+        if (params) {
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined && value !== null && value !== '' && value !== 'all') {
+                    queryParams.append(key, String(value));
+                }
+            });
+        }
+
+        const response = await fetch(`/api/customers?${queryParams.toString()}`, {
+            headers: getHeaders()
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to fetch customers');
+        return data.data;
+    },
+
+    getCustomerById: async (id: string) => {
+        const response = await fetch(`/api/customers/${id}`, {
+            headers: getHeaders()
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to fetch customer details');
+        return data.data;
+    },
+
+    createCustomer: async (customerData: any) => {
+        const response = await fetch('/api/customers', {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify(customerData)
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to create customer');
+        return data.data;
+    },
+
+    blockCustomer: async (id: string, reason: string) => {
+        const response = await fetch(`/api/customers/${id}/block`, {
+            method: 'PATCH',
+            headers: getHeaders(),
+            body: JSON.stringify({ reason })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to block customer');
+        return data.data;
+    },
+
+    unblockCustomer: async (id: string) => {
+        const response = await fetch(`/api/customers/${id}/unblock`, {
+            method: 'PATCH',
+            headers: getHeaders()
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to unblock customer');
+        return data.data;
+    },
+
+    exportCustomers: async (params?: any) => {
+        const queryParams = new URLSearchParams();
+        if (params) {
+            Object.entries(params).forEach(([key, value]) => {
+                if (value) queryParams.append(key, String(value));
+            });
+        }
+
+        const response = await fetch(`/api/customers/export?${queryParams.toString()}`, {
+            headers: getHeaders()
+        });
+
+        if (!response.ok) throw new Error('Failed to export customers');
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `customers_export_${Date.now()}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    },
+
+    sendMessage: async (payload: { customerIds: string[], message: string, type: string }) => {
+        const response = await fetch('/api/customers/notifications/send', {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to send message');
+        return data.data;
+    },
+
+    // Menu Management API methods
+    getMenuItems: async (params?: any) => {
+        const queryParams = new URLSearchParams();
+        if (params) {
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined && value !== null && value !== '' && value !== 'all') {
+                    queryParams.append(key, String(value));
+                }
+            });
+        }
+
+        const response = await fetch(`/api/menu-items?${queryParams.toString()}`, {
+            headers: getHeaders(),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            if (response.status === 401) localStorage.removeItem('token');
+            throw new Error(data.message || 'Failed to fetch menu items');
+        }
+        return data.data;
+    },
+
+    getMenuItemCount: async () => {
+        const response = await fetch('/api/menu-items/count', {
+            headers: getHeaders(),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to fetch menu item count');
+        }
+        return data.data;
+    },
+
+    createMenuItem: async (menuItemData: FormData) => {
+        const token = localStorage.getItem('token');
+        const headers: HeadersInit = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch('/api/menu-items', {
+            method: 'POST',
+            headers: headers,
+            body: menuItemData,
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to create menu item');
+        }
+        return data.data;
+    },
+
+    updateMenuItem: async (id: string, menuItemData: FormData) => {
+        const token = localStorage.getItem('token');
+        const headers: HeadersInit = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(`/api/menu-items/${id}`, {
+            method: 'PATCH',
+            headers: headers,
+            body: menuItemData,
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to update menu item');
+        }
+        return data.data;
+    },
+
+    toggleMenuAvailability: async (id: string) => {
+        const response = await fetch(`/api/menu-items/${id}/availability`, {
+            method: 'PATCH',
+            headers: getHeaders(),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to toggle availability');
+        }
+        return data.data;
+    },
+
+    toggleMenuFeatured: async (id: string) => {
+        const response = await fetch(`/api/menu-items/${id}/featured`, {
+            method: 'PATCH',
+            headers: getHeaders(),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to toggle featured status');
+        }
+        return data.data;
+    },
+
+    deleteMenuItem: async (id: string) => {
+        const response = await fetch(`/api/menu-items/${id}`, {
+            method: 'DELETE',
+            headers: getHeaders(),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to delete menu item');
+        }
+        return data;
+    },
+
+    // Orders API methods
+    getOrders: async (params?: any) => {
+        const queryParams = new URLSearchParams();
+        if (params) {
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined && value !== null && value !== '' && value !== 'all') {
+                    queryParams.append(key, String(value));
+                }
+            });
+        }
+
+        const response = await fetch(`/api/orders?${queryParams.toString()}`, {
+            headers: getHeaders(),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            if (response.status === 401) localStorage.removeItem('token');
+            throw new Error(data.message || 'Failed to fetch orders');
+        }
+        return data.data;
+    },
+
+    getOrdersCount: async (params?: any) => {
+        const queryParams = new URLSearchParams();
+        if (params) {
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined && value !== null && value !== '' && value !== 'all') {
+                    queryParams.append(key, String(value));
+                }
+            });
+        }
+
+        const response = await fetch(`/api/orders/count?${queryParams.toString()}`, {
+            headers: getHeaders(),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to fetch orders count');
+        }
+        return data.data;
+    },
+
+    getOrderById: async (id: string) => {
+        const response = await fetch(`/api/orders/${id}`, {
+            headers: getHeaders(),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to fetch order details');
+        }
+        return data.data;
+    },
+
+    updateOrderStatus: async (id: string, status: string, note?: string) => {
+        const response = await fetch(`/api/orders/${id}/status`, {
+            method: 'PATCH',
+            headers: getHeaders(),
+            body: JSON.stringify({ status, note }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to update order status');
+        }
+        return data.data;
+    },
+
+    updateOrder: async (id: string, updates: any) => {
+        const response = await fetch(`/api/orders/${id}`, {
+            method: 'PATCH',
+            headers: getHeaders(),
+            body: JSON.stringify(updates),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to update order');
+        }
+        return data.data;
+    },
+
+    deleteOrder: async (id: string) => {
+        const response = await fetch(`/api/orders/${id}`, {
+            method: 'DELETE',
+            headers: getHeaders(),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to delete order');
+        }
+        return data;
+    },
+
+    // Payment API methods
+    getPaymentStats: async () => {
+        const response = await fetch('/api/payments/stats', {
+            headers: getHeaders(),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            if (response.status === 401) localStorage.removeItem('token');
+            throw new Error(data.message || 'Failed to fetch payment stats');
+        }
+        return data.data;
+    },
+
+    getPayments: async (params?: any) => {
+        const queryParams = new URLSearchParams();
+        if (params) {
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined && value !== null && value !== '' && value !== 'all') {
+                    queryParams.append(key, String(value));
+                }
+            });
+        }
+
+        const response = await fetch(`/api/payments?${queryParams.toString()}`, {
+            headers: getHeaders(),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            if (response.status === 401) localStorage.removeItem('token');
+            throw new Error(data.message || 'Failed to fetch payments');
+        }
+
+        const payments = data.data.payments.map((p: any) => ({
+            id: p.id,
+            transaction_id: p.transaction_id,
+            order_id: p.order_id,
+            amount: p.amount,
+            status: p.status,
+            created_at: p.created_at,
+            payment_mode: p.payment_method,
+            customer_name: p.order?.user?.name || 'Walk-in Customer',
+            customer_id: p.order?.user?.id || '',
+        }));
+
+        return {
+            payments,
+            total: data.data.total,
+            totalPages: data.data.totalPages,
+            currentPage: data.data.currentPage
+        };
+    },
+
+    addPayment: async (paymentData: any) => {
+        const payload = {
+            ...paymentData,
+            payment_method: paymentData.payment_mode
+        };
+        const response = await fetch('/api/payments', {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to add payment');
+        return data.data;
+    },
+
+    updatePayment: async (id: string, updates: any) => {
+        const response = await fetch(`/api/payments/${id}`, {
+            method: 'PATCH',
+            headers: getHeaders(),
+            body: JSON.stringify(updates),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to update payment');
+        return data.data;
+    },
+
+    deletePayment: async (id: string) => {
+        const response = await fetch(`/api/payments/${id}`, {
+            method: 'DELETE',
+            headers: getHeaders(),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to delete payment');
+        return data;
+    },
+
+    exportPayments: async (params?: any) => {
+        const queryParams = new URLSearchParams();
+        if (params) {
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined && value !== null && value !== '' && value !== 'all') {
+                    queryParams.append(key, String(value));
+                }
+            });
+        }
+
+        const response = await fetch(`/api/payments/export?${queryParams.toString()}`, {
+            headers: getHeaders(),
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.message || 'Failed to export payments');
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `payments_export_${Date.now()}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+    }
 };
 
