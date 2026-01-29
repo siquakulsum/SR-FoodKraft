@@ -27,22 +27,51 @@ export const api = {
         if (!response.ok) {
             throw new Error(data.message || 'Login failed');
         }
-        return data.data;
 
+        // Backend returns: { success: true, message: 'Login successful', data: { id, name, email, phone, role, token } }
+        const userData = data.data;
+
+        return {
+            user: {
+                id: userData.id,
+                name: userData.name,
+                email: userData.email,
+                phone: userData.phone || '',
+                role: userData.role || 'customer', // Ensure role is always present
+                addresses: [],
+                favorites: []
+            },
+            token: userData.token
+        };
     },
 
     register: async (userData: any): Promise<{ user: User; token: string }> => {
         const response = await fetch(`${API_URL}/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(userData),
+            body: JSON.stringify({ ...userData, role: 'customer' }), // Always register as customer
         });
 
         const data = await response.json();
         if (!response.ok) {
             throw new Error(data.message || 'Registration failed');
         }
-        return data.data;
+
+        // Backend returns: { success: true, message: 'User registered successfully', data: { id, name, email, phone, role, token } }
+        const registeredUser = data.data;
+
+        return {
+            user: {
+                id: registeredUser.id,
+                name: registeredUser.name,
+                email: registeredUser.email,
+                phone: registeredUser.phone || '',
+                role: registeredUser.role || 'customer',
+                addresses: [],
+                favorites: []
+            },
+            token: registeredUser.token
+        };
     },
 
     forgotPassword: async (email: string): Promise<string> => {

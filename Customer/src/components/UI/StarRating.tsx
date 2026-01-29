@@ -10,10 +10,10 @@ interface StarRatingProps {
   count?: number;
 }
 
-export default function StarRating({ 
-  rating, 
-  onRatingChange, 
-  readonly = false, 
+export default function StarRating({
+  rating,
+  onRatingChange,
+  readonly = false,
   size = 'md',
   showCount = false,
   count = 0
@@ -57,7 +57,7 @@ export default function StarRating({
 
   return (
     <div className="flex items-center space-x-1">
-      <div 
+      <div
         className="flex items-center"
         onMouseLeave={handleMouseLeave}
       >
@@ -71,24 +71,23 @@ export default function StarRating({
             disabled={readonly}
           >
             <Star
-              className={`${sizeClasses[size]} ${
-                star <= displayRating
-                  ? isHovering 
-                    ? 'text-yellow-400 fill-current drop-shadow-sm' 
+              className={`${sizeClasses[size]} ${star <= displayRating
+                  ? isHovering
+                    ? 'text-yellow-400 fill-current drop-shadow-sm'
                     : 'text-gold fill-current'
                   : 'text-gray-300 hover:text-gray-400'
-              } transition-all duration-200`}
+                } transition-all duration-200`}
             />
           </button>
         ))}
       </div>
-      
+
       {showCount && count > 0 && (
         <span className={`${textSizeClasses[size]} text-gray-500 font-inter ml-2`}>
           ({count} {count === 1 ? 'review' : 'reviews'})
         </span>
       )}
-      
+
       {!showCount && rating > 0 && (
         <span className={`${textSizeClasses[size]} text-gray-600 font-inter ml-1`}>
           {rating.toFixed(1)}

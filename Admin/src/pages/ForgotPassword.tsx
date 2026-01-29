@@ -56,7 +56,7 @@ export default function ForgotPassword() {
             </AlertDescription>
           </Alert>
           <Button
-            onClick={() => navigate('/admin/login')}
+            onClick={() => navigate('/login')}
             className="w-full mt-4 bg-gold-500 hover:bg-gold-600 text-white"
           >
             Back to Login
@@ -98,7 +98,7 @@ export default function ForgotPassword() {
             type="button"
             variant="outline"
             className="w-full"
-            onClick={() => navigate('/admin/login')}
+            onClick={() => navigate('/login')}
           >
             Back to Login
           </Button>

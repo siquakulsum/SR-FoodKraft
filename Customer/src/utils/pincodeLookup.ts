@@ -71,7 +71,7 @@ const PINCODE_DATABASE: Record<string, PincodeData> = {
   '600058': { city: 'Chennai', state: 'Tamil Nadu', area: 'Sholinganallur' },
   '600059': { city: 'Chennai', state: 'Tamil Nadu', area: 'Medavakkam' },
   '600060': { city: 'Chennai', state: 'Tamil Nadu', area: 'Pallikaranai' },
-  
+
   // Other major cities
   '110001': { city: 'New Delhi', state: 'Delhi', area: 'Connaught Place' },
   '110002': { city: 'New Delhi', state: 'Delhi', area: 'Daryaganj' },
@@ -94,19 +94,19 @@ const PINCODE_DATABASE: Record<string, PincodeData> = {
 export const lookupPincode = async (pincode: string): Promise<PincodeData | null> => {
   // Clean the pincode (remove spaces, non-digits)
   const cleanPincode = pincode.replace(/\D/g, '');
-  
+
   // Check if pincode is 6 digits
   if (cleanPincode.length !== 6) {
     return null;
   }
-  
+
   // Look up in our database
   const result = PINCODE_DATABASE[cleanPincode];
-  
+
   if (result) {
     return result;
   }
-  
+
   // If not found in our database, you could make an API call here
   // For example, using India Post API or similar service
   try {
@@ -127,7 +127,7 @@ export const lookupPincode = async (pincode: string): Promise<PincodeData | null
   } catch (error) {
     console.error('Error fetching pincode data:', error);
   }
-  
+
   return null;
 };
 

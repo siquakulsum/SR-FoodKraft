@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { useSearchParams } from 'react-router-dom';
 import { useInquiryStore } from '@/store/inquiry-store';
 import { Search, Eye, MessageSquare, Phone, Mail, Calendar, Users, DollarSign, Star, Clock, CheckCircle, XCircle, AlertCircle, Download, Plus } from 'lucide-react';
@@ -101,7 +102,7 @@ function AddInquiryModal() {
       resetForm();
     } catch (error) {
       console.error('Failed to add inquiry:', error);
-      alert('Failed to add inquiry. Please try again.');
+      toast.error('Failed to add inquiry. Please try again.');
     }
   };
 
@@ -339,7 +340,7 @@ function InquiryDetailModal({ inquiry }: { inquiry: Inquiry }) {
       setEditMode(false);
     } catch (error) {
       console.error('Failed to update inquiry:', error);
-      alert('Failed to update inquiry');
+      toast.error('Failed to update inquiry');
     }
   };
 
@@ -771,7 +772,7 @@ export default function Inquiries() {
       });
     } catch (error) {
       console.error('Export failed:', error);
-      alert('Failed to export inquiries');
+      toast.error('Failed to export inquiries');
     }
   };
 

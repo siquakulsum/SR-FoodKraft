@@ -127,7 +127,7 @@ export default function NotificationCenter() {
 
     try {
       const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id);
-      
+
       for (const id of unreadIds) {
         await markAsRead(id);
       }
@@ -257,11 +257,10 @@ export default function NotificationCenter() {
               {notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`p-3 rounded-lg border transition-colors ${
-                    notification.is_read
+                  className={`p-3 rounded-lg border transition-colors ${notification.is_read
                       ? 'bg-gray-50 border-gray-200'
                       : 'bg-blue-50 border-blue-200'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-start space-x-3 flex-1">

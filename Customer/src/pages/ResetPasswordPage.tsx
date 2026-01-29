@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff, CheckCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import { api } from '../services/api';
 import Button from '../components/UI/Button';
 
@@ -52,6 +53,7 @@ export default function ResetPasswordPage() {
             // Update password
             await api.resetPassword(token, password);
             setSuccess(true);
+            toast.success('Password reset successful');
 
             // Redirect to login after 3 seconds
             setTimeout(() => {
@@ -59,6 +61,7 @@ export default function ResetPasswordPage() {
             }, 3000);
         } catch (err: any) {
             setError(err.message || 'Failed to update password');
+            toast.error(err.message || 'Failed to update password');
         } finally {
             setLoading(false);
         }

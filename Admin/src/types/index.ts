@@ -4,6 +4,7 @@ export interface Admin {
   name: string;
   phone?: string;
   avatar_url?: string;
+  role: string;
 }
 
 export interface Customer {

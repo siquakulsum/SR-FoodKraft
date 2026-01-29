@@ -1,0 +1,23 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://srfoodkraft.com/sitemap.xml
+
+# Disallow admin and private pages
+Disallow: /admin/
+Disallow: /login
+Disallow: /profile
+Disallow: /orders
+Disallow: /checkout
+Disallow: /order-confirmation
+
+# Allow important pages
+Allow: /
+Allow: /menu
+Allow: /about
+Allow: /contact
+Allow: /cart
+
+# Crawl delay
+Crawl-delay: 1

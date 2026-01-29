@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from 'sonner';
 import { ArrowLeft, Mail, CheckCircle } from 'lucide-react';
 import Button from '../UI/Button';
 
@@ -27,8 +28,10 @@ export default function ForgotPassword({ onBack, onSuccess }: ForgotPasswordProp
             // Send password reset email (mock implementation - replace with actual API call)
             await sendPasswordResetEmail(email);
             setStep('success');
+            toast.success('Reset link sent to your email');
         } catch (err: any) {
             setError(err.message || 'Failed to send reset email');
+            toast.error(err.message || 'Failed to send reset email');
         } finally {
             setLoading(false);
         }

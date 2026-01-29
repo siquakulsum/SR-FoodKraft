@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { ArrowLeft, Smartphone, Shield } from 'lucide-react';
 import Button from '../UI/Button';
 
@@ -38,8 +39,10 @@ export default function OTPLogin({ onBack, onSuccess }: OTPLoginProps) {
             await sendOTP(phone);
             setStep('otp');
             setCountdown(60); // 60 seconds countdown
+            toast.success('OTP sent successfully');
         } catch (err: any) {
             setError(err.message || 'Failed to send OTP');
+            toast.error(err.message || 'Failed to send OTP');
         } finally {
             setLoading(false);
         }
@@ -59,8 +62,10 @@ export default function OTPLogin({ onBack, onSuccess }: OTPLoginProps) {
             // Verify OTP (mock implementation - replace with actual API call)
             const user = await verifyOTP(phone, otp);
             onSuccess(user);
+            toast.success('Login successful!');
         } catch (err: any) {
             setError(err.message || 'Invalid OTP. Please try again.');
+            toast.error(err.message || 'Invalid OTP. Please try again.');
         } finally {
             setLoading(false);
         }

@@ -210,7 +210,7 @@ export default function GlobalSearch({ isOpen, onClose, searchQuery, onSearchQue
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center pt-20">
+        <div className="fixed inset-0 z-[60] bg-black/50 flex items-start justify-center pt-20">
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[70vh] overflow-hidden">
                 {/* Header */}
                 <div className="p-4 border-b border-slate-200 dark:border-slate-700">

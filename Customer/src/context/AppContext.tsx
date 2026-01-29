@@ -334,6 +334,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
           name: 'Demo User',
           email: 'demo@srfoodkraft.com',
           phone: '+91 98765 43210',
+          role: 'customer',
           addresses: [
             {
               id: 'addr-1',
