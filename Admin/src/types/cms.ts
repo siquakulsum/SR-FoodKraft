@@ -70,8 +70,8 @@ export interface SiteSetting {
   id: string;
   key: string;
   value: string;
-  type: 'text' | 'image' | 'url' | 'email' | 'phone';
-  category: 'branding' | 'contact' | 'social' | 'general';
+  type: 'text' | 'image' | 'url' | 'email' | 'phone' | 'json' | 'number' | 'boolean' | 'color';
+  category: 'branding' | 'contact' | 'social' | 'general' | 'content';
   description: string | null;
   created_at: string;
   updated_at: string;

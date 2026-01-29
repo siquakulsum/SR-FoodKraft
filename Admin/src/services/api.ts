@@ -81,7 +81,7 @@ export const api = {
 
     updateProfile: async (updates: Partial<Admin>): Promise<Admin> => {
         // Use the new Admin Profile API
-        const response = await fetch(`/api/admin/profile`, {
+        const response = await fetch(`/admin/profile`, {
             method: 'PATCH',
             headers: getHeaders(),
             body: JSON.stringify(updates),
@@ -117,8 +117,9 @@ export const api = {
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;
         }
+        // Content-Type is NOT set for FormData so browser can set boundary
 
-        const response = await fetch(`/api/admin/profile/avatar`, {
+        const response = await fetch(`/admin/profile/avatar`, {
             method: 'POST',
             headers: headers,
             body: formData,
@@ -126,21 +127,27 @@ export const api = {
 
         const data = await response.json();
         if (!response.ok) {
-            if (response.status === 401) localStorage.removeItem('token');
             throw new Error(data.message || 'Failed to upload avatar');
         }
         return data.data;
     },
 
     removeAvatar: async (): Promise<{ avatar_url: string }> => {
-        const response = await fetch(`/api/admin/profile/avatar`, {
+        const token = localStorage.getItem('token');
+        const headers: HeadersInit = {
+            'Content-Type': 'application/json',
+        };
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(`/admin/profile/avatar`, {
             method: 'DELETE',
-            headers: getHeaders(),
+            headers: headers,
         });
 
         const data = await response.json();
         if (!response.ok) {
-            if (response.status === 401) localStorage.removeItem('token');
             throw new Error(data.message || 'Failed to remove avatar');
         }
         return data.data;
@@ -196,6 +203,16 @@ export const api = {
             }
             throw new Error(data.message || 'Failed to fetch inquiries');
         }
+
+        // Map backend fields
+        if (data.data && data.data.inquiries) {
+            data.data.inquiries = data.data.inquiries.map((inquiry: any) => ({
+                ...inquiry,
+                created_at: inquiry.createdAt || inquiry.created_at,
+                updated_at: inquiry.updatedAt || inquiry.updated_at
+            }));
+        }
+
         return data.data;
     },
 
@@ -312,40 +329,170 @@ export const api = {
         window.URL.revokeObjectURL(downloadUrl);
     },
 
-    // Customer API methods
-    getCustomerStats: async () => {
-        const response = await fetch('/api/customers/stats/total', { // The backend service returns all stats in one object usually, but let's check my implementation.
-            // My implementation: `router.get('/stats/total', customerController.getStats);`
-            // And controller returns based on path OR fallback. 
-            // `customerService.getCustomerStats` returns { totalCustomers, activeCustomers, blockedCustomers, totalRevenue }.
-            // `customerController.getStats` -> if path has 'total', return { total: ... }. 
-            // So I need to call ALL endpoints OR just one if I implemented a generic one.
-            // My `customerRoutes.js` had:
-            // router.get('/stats/total', customerController.getStats);
-            // router.get('/stats/active', customerController.getStats);
-            // etc.
-            // AND the controller checked `req.route.path.includes('total')`.
-            // So I have to call them individually if I want to strictly follow the route structure I built, 
-            // UNLESS I just call one and the controller logic allows retrieving all?
-            // Controller fallback: `return sendResponse(res, 200, true, 'Customer stats', stats);`
-            // But the routes are specific.
-            // To get ALL stats for the dashboard in one go (efficiently), I should have made a generic endpoint.
-            // Since I didn't explicitly make a generic `/stats` route in `customerRoutes.js` (I only did specific ones),
-            // I might have to call 4 endpoints or add a generic one.
-            // Wait, my `customerRoutes.js`:
-            // `router.get('/stats/total', ...)`
-            // I did NOT add `router.get('/stats', ...)`
-            // So I must call 4 endpoints OR I can try to hit one that falls through? No.
-            // I will implement `getCustomerStats` to call all 4 in parallel and combine, OR I will assume I can update backend to expose `/stats`.
-            // But I am in frontend integration task, strict "DO NOT change backend logic" (unless I made it).
-            // Actually, I just made the backend. 
-            // I will update the frontend to call 4 times in parallel.
+    // CMS API methods
+    getCMSBanners: async () => {
+        const response = await fetch('/api/cms/banners', { headers: getHeaders() });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to fetch banners');
+        return data.data;
+    },
+    createCMSBanner: async (bannerData: any) => {
+        const response = await fetch('/api/cms/banners', {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify(bannerData),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to create banner');
+        return data.data;
+    },
+    updateCMSBanner: async (id: string, updates: any) => {
+        const response = await fetch(`/api/cms/banners/${id}`, {
+            method: 'PUT',
+            headers: getHeaders(),
+            body: JSON.stringify(updates),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to update banner');
+        return data.data;
+    },
+    deleteCMSBanner: async (id: string) => {
+        const response = await fetch(`/api/cms/banners/${id}`, {
+            method: 'DELETE',
             headers: getHeaders(),
         });
-        // Actually, to make it cleaner, I'll fetch them individually in the store or here.
-        // Let's implement individual methods or a combined one.
-        // Combined is better for the UI component.
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to delete banner');
+        return data;
+    },
 
+    getCMSPages: async () => {
+        const response = await fetch('/api/cms/pages', { headers: getHeaders() });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to fetch pages');
+        return data.data;
+    },
+    createCMSPage: async (pageData: any) => {
+        const response = await fetch('/api/cms/pages', {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify(pageData),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to create page');
+        return data.data;
+    },
+    updateCMSPage: async (id: string, updates: any) => {
+        const response = await fetch(`/api/cms/pages/${id}`, {
+            method: 'PUT',
+            headers: getHeaders(),
+            body: JSON.stringify(updates),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to update page');
+        return data.data;
+    },
+    deleteCMSPage: async (id: string) => {
+        const response = await fetch(`/api/cms/pages/${id}`, {
+            method: 'DELETE',
+            headers: getHeaders(),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to delete page');
+        return data;
+    },
+
+    getCMSFAQs: async () => {
+        const response = await fetch('/api/cms/faqs', { headers: getHeaders() });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to fetch FAQs');
+        return data.data;
+    },
+    createCMSFAQ: async (faqData: any) => {
+        const response = await fetch('/api/cms/faqs', {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify(faqData),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to create FAQ');
+        return data.data;
+    },
+    updateCMSFAQ: async (id: string, updates: any) => {
+        const response = await fetch(`/api/cms/faqs/${id}`, {
+            method: 'PUT',
+            headers: getHeaders(),
+            body: JSON.stringify(updates),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to update FAQ');
+        return data.data;
+    },
+    deleteCMSFAQ: async (id: string) => {
+        const response = await fetch(`/api/cms/faqs/${id}`, {
+            method: 'DELETE',
+            headers: getHeaders(),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to delete FAQ');
+        return data;
+    },
+
+    getCMSTestimonials: async () => {
+        const response = await fetch('/api/cms/testimonials', { headers: getHeaders() });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to fetch testimonials');
+        return data.data;
+    },
+    createCMSTestimonial: async (testimonialData: any) => {
+        const response = await fetch('/api/cms/testimonials', {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify(testimonialData),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to create testimonial');
+        return data.data;
+    },
+    updateCMSTestimonial: async (id: string, updates: any) => {
+        const response = await fetch(`/api/cms/testimonials/${id}`, {
+            method: 'PUT',
+            headers: getHeaders(),
+            body: JSON.stringify(updates),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to update testimonial');
+        return data.data;
+    },
+    deleteCMSTestimonial: async (id: string) => {
+        const response = await fetch(`/api/cms/testimonials/${id}`, {
+            method: 'DELETE',
+            headers: getHeaders(),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to delete testimonial');
+        return data;
+    },
+
+    getCMSSettings: async () => {
+        const response = await fetch('/api/cms/settings', { headers: getHeaders() });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to fetch settings');
+        return data.data;
+    },
+    updateCMSSetting: async (key: string, value: string, type: string = 'text') => {
+        const response = await fetch('/api/cms/settings', {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({ key, value, type }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to update setting');
+        return data.data;
+    },
+
+    // Customer API methods
+    getCustomerStats: async () => {
         const [total, active, blocked, revenue] = await Promise.all([
             fetch('/api/customers/stats/total', { headers: getHeaders() }).then(r => r.json()),
             fetch('/api/customers/stats/active', { headers: getHeaders() }).then(r => r.json()),
@@ -365,7 +512,7 @@ export const api = {
         const queryParams = new URLSearchParams();
         if (params) {
             Object.entries(params).forEach(([key, value]) => {
-                if (value !== undefined && value !== null && value !== '' && value !== 'all') { // 'all' might be default for status
+                if (value !== undefined && value !== null && value !== '' && value !== 'all') {
                     queryParams.append(key, String(value));
                 }
             });
@@ -377,7 +524,17 @@ export const api = {
 
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || 'Failed to fetch customers');
-        return data.data; // { customers, total, totalPages, currentPage }
+
+        // Map backend fields
+        if (data.data) {
+            data.data = data.data.map((customer: any) => ({
+                ...customer,
+                created_at: customer.createdAt || customer.created_at,
+                updated_at: customer.updatedAt || customer.updated_at
+            }));
+        }
+
+        return data.data;
     },
 
     getCustomerById: async (id: string) => {
@@ -476,7 +633,7 @@ export const api = {
             if (response.status === 401) localStorage.removeItem('token');
             throw new Error(data.message || 'Failed to fetch menu items');
         }
-        return data.data; // Expected { items, total, pages, currentPage } or just array depending on backend
+        return data.data;
     },
 
     getMenuItemCount: async () => {
@@ -492,8 +649,6 @@ export const api = {
     },
 
     createMenuItem: async (menuItemData: FormData) => {
-        // Note: Content-Type header should NOT be set manually when using FormData
-        // fetch will automatically set it to multipart/form-data with the boundary
         const token = localStorage.getItem('token');
         const headers: HeadersInit = {};
         if (token) {
@@ -592,7 +747,17 @@ export const api = {
             if (response.status === 401) localStorage.removeItem('token');
             throw new Error(data.message || 'Failed to fetch orders');
         }
-        return data.data; // { orders, total, totalPages, currentPage }
+
+        // Map backend fields to frontend interface
+        if (data.data.orders) {
+            data.data.orders = data.data.orders.map((order: any) => ({
+                ...order,
+                created_at: order.createdAt || order.created_at,
+                updated_at: order.updatedAt || order.updated_at
+            }));
+        }
+
+        return data.data;
     },
 
     getOrdersCount: async (params?: any) => {
@@ -613,7 +778,7 @@ export const api = {
         if (!response.ok) {
             throw new Error(data.message || 'Failed to fetch orders count');
         }
-        return data.data; // { count }
+        return data.data;
     },
 
     getOrderById: async (id: string) => {
@@ -687,8 +852,6 @@ export const api = {
         if (params) {
             Object.entries(params).forEach(([key, value]) => {
                 if (value !== undefined && value !== null && value !== '' && value !== 'all') {
-                    // Map frontend filter keys to backend expectations if needed
-                    // Frontend 'modeFilter' -> params.payment_mode (if passed as payment_mode by caller)
                     queryParams.append(key, String(value));
                 }
             });
@@ -704,7 +867,6 @@ export const api = {
             throw new Error(data.message || 'Failed to fetch payments');
         }
 
-        // Map backend response to frontend Payment interface
         const payments = data.data.payments.map((p: any) => ({
             id: p.id,
             transaction_id: p.transaction_id,
@@ -712,7 +874,6 @@ export const api = {
             amount: p.amount,
             status: p.status,
             created_at: p.created_at,
-            // Map mismatched fields
             payment_mode: p.payment_method,
             customer_name: p.order?.user?.name || 'Walk-in Customer',
             customer_id: p.order?.user?.id || '',
@@ -727,10 +888,9 @@ export const api = {
     },
 
     addPayment: async (paymentData: any) => {
-        // Map frontend fields to backend fields
         const payload = {
             ...paymentData,
-            payment_method: paymentData.payment_mode // Backend expects payment_method
+            payment_method: paymentData.payment_mode
         };
         const response = await fetch('/api/payments', {
             method: 'POST',
@@ -793,3 +953,4 @@ export const api = {
         window.URL.revokeObjectURL(url);
     }
 };
+

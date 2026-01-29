@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useCMSEnhancedStore } from '@/store/cms-enhanced-store';
-import { CircleHelp as HelpCircle, Plus, Trash2, CreditCard as Edit2, Eye, EyeOff, X } from 'lucide-react';
+import { CircleHelp as HelpCircle, Plus, Trash2, CreditCard as Edit2, Eye, EyeOff, X, Loader2 } from 'lucide-react';
 import { FAQ } from '@/types/cms';
+import { useToast } from '@/hooks/use-toast';
 
 export default function FAQManager() {
   const {
@@ -13,7 +14,9 @@ export default function FAQManager() {
     deleteFAQ,
   } = useCMSEnhancedStore();
 
+  const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [editingFAQ, setEditingFAQ] = useState<FAQ | null>(null);
   const [formData, setFormData] = useState({
     question: '',
@@ -53,22 +56,71 @@ export default function FAQManager() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSaving(true);
 
-    if (editingFAQ) {
-      await updateFAQ(editingFAQ.id, formData);
-    } else {
-      await addFAQ(formData);
+    try {
+      if (editingFAQ) {
+        await updateFAQ(editingFAQ.id, formData);
+        toast({
+          title: "FAQ Updated",
+          description: "The FAQ has been updated successfully.",
+        });
+      } else {
+        await addFAQ(formData);
+        toast({
+          title: "FAQ Added",
+          description: "The new FAQ has been added successfully.",
+        });
+      }
+      // Refresh the FAQ list to show the changes
+      await fetchFAQs();
+      resetForm();
+    } catch (err: any) {
+      toast({
+        title: "Action Failed",
+        description: err.message || "Something went wrong while saving the FAQ.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
     }
-    resetForm();
   };
 
   const handleToggleActive = async (id: string, isActive: boolean) => {
-    await updateFAQ(id, { is_active: !isActive });
+    try {
+      await updateFAQ(id, { is_active: !isActive });
+      // Refresh the FAQ list to show the updated status
+      await fetchFAQs();
+      toast({
+        title: isActive ? "FAQ Hidden" : "FAQ Published",
+        description: `The FAQ is now ${isActive ? 'hidden' : 'visible'} on the website.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: "Toggle Failed",
+        description: err.message || "Failed to update FAQ status.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this FAQ?')) {
-      await deleteFAQ(id);
+      try {
+        await deleteFAQ(id);
+        // Refresh the FAQ list to remove the deleted item
+        await fetchFAQs();
+        toast({
+          title: "FAQ Deleted",
+          description: "The FAQ has been removed successfully.",
+        });
+      } catch (err: any) {
+        toast({
+          title: "Delete Failed",
+          description: err.message || "Failed to delete the FAQ.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -174,10 +226,11 @@ export default function FAQManager() {
 
             <button
               type="submit"
-              disabled={!formData.question || !formData.answer}
-              className="w-full sm:w-auto px-6 py-2 gradient-primary text-white rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+              disabled={isSaving || !formData.question || !formData.answer}
+              className="w-full sm:w-auto px-6 py-2 gradient-primary text-white rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base flex items-center justify-center gap-2"
             >
-              {editingFAQ ? 'Update FAQ' : 'Add FAQ'}
+              {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+              {isSaving ? 'Saving...' : (editingFAQ ? 'Update FAQ' : 'Add FAQ')}
             </button>
           </form>
         )}

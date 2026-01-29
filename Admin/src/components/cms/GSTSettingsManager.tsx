@@ -5,10 +5,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useSettingsStore } from '@/store/settings-store';
 import { Receipt, Building2, Hash, DollarSign } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 export default function GSTSettingsManager() {
   const { settings, updateSettings } = useSettingsStore();
+  const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
     gstRate: settings.gstRate.toString(),
     businessName: settings.businessName,
@@ -18,16 +21,31 @@ export default function GSTSettingsManager() {
     serviceCharges: settings.serviceCharges.toString(),
   });
 
-  const handleSave = () => {
-    updateSettings({
-      gstRate: parseFloat(formData.gstRate),
-      businessName: formData.businessName,
-      businessAddress: formData.businessAddress,
-      gstNumber: formData.gstNumber,
-      deliveryCharges: parseFloat(formData.deliveryCharges),
-      serviceCharges: parseFloat(formData.serviceCharges),
-    });
-    setIsEditing(false);
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await updateSettings({
+        gstRate: parseFloat(formData.gstRate),
+        businessName: formData.businessName,
+        businessAddress: formData.businessAddress,
+        gstNumber: formData.gstNumber,
+        deliveryCharges: parseFloat(formData.deliveryCharges),
+        serviceCharges: parseFloat(formData.serviceCharges),
+      });
+      toast({
+        title: "Settings Updated",
+        description: "Business and GST settings have been saved successfully.",
+      });
+      setIsEditing(false);
+    } catch (error: any) {
+      toast({
+        title: "Update Failed",
+        description: error.message || "Failed to save settings. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
@@ -52,8 +70,12 @@ export default function GSTSettingsManager() {
         <div className="flex flex-col sm:flex-row gap-2">
           {isEditing ? (
             <>
-              <Button onClick={handleSave} className="bg-green-600 hover:bg-green-700 w-full sm:w-auto">
-                Save Changes
+              <Button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="bg-green-600 hover:bg-green-700 w-full sm:w-auto min-w-[120px]"
+              >
+                {isSaving ? 'Saving...' : 'Save Changes'}
               </Button>
               <Button variant="outline" onClick={handleCancel} className="w-full sm:w-auto">
                 Cancel

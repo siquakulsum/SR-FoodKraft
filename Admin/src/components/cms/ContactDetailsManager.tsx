@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useCMSEnhancedStore } from '@/store/cms-enhanced-store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,7 +26,8 @@ import {
   Globe,
   Eye,
   Edit3,
-  Map
+  Map,
+  Loader2
 } from 'lucide-react';
 
 interface ContactDetails {
@@ -157,17 +159,45 @@ const defaultContactDetails: ContactDetails = {
 };
 
 export default function ContactDetailsManager() {
+  const { siteSettings, fetchSiteSettings, updateSiteSetting } = useCMSEnhancedStore();
   const [contactDetails, setContactDetails] = useState<ContactDetails>(defaultContactDetails);
   const [activeSection, setActiveSection] = useState<'hero' | 'form' | 'contact' | 'hours' | 'social' | 'map'>('hero');
   const [previewMode, setPreviewMode] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
-  const handleSave = () => {
-    // In a real app, this would save to the backend
-    toast({
-      title: 'Contact Details Updated',
-      description: 'Your contact page settings have been saved successfully',
-    });
+  useEffect(() => {
+    fetchSiteSettings();
+  }, []);
+
+  useEffect(() => {
+    const setting = siteSettings.find(s => s.key === 'contact_details');
+    if (setting) {
+      try {
+        setContactDetails(JSON.parse(setting.value));
+      } catch (e) {
+        console.error('Failed to parse contact details', e);
+      }
+    }
+  }, [siteSettings]);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await updateSiteSetting('contact_details', JSON.stringify(contactDetails), 'json');
+      toast({
+        title: 'Success',
+        description: 'Contact details updated successfully',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update contact details',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const addPhone = () => {
@@ -251,10 +281,18 @@ export default function ContactDetailsManager() {
             <span className="hidden sm:inline">{previewMode ? 'Edit Mode' : 'Preview Mode'}</span>
             <span className="sm:hidden">{previewMode ? 'Edit' : 'Preview'}</span>
           </Button>
-          <Button onClick={handleSave} className="bg-gold-500 hover:bg-gold-600 w-full sm:w-auto">
-            <Save className="w-4 h-4 mr-2" />
-            <span className="hidden sm:inline">Save Changes</span>
-            <span className="sm:hidden">Save</span>
+          <Button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="bg-gold-500 hover:bg-gold-600 w-full sm:w-auto"
+          >
+            {isSaving ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4 mr-2" />
+            )}
+            <span className="hidden sm:inline">{isSaving ? 'Saving...' : 'Save Changes'}</span>
+            <span className="sm:hidden">{isSaving ? '...' : 'Save'}</span>
           </Button>
         </div>
       </div>
@@ -276,8 +314,8 @@ export default function ContactDetailsManager() {
                 key={section.id}
                 onClick={() => setActiveSection(section.id as any)}
                 className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-3 rounded-lg font-medium transition-all text-xs sm:text-sm ${activeSection === section.id
-                    ? 'bg-gold-500 text-white shadow-lg'
-                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                  ? 'bg-gold-500 text-white shadow-lg'
+                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
                   }`}
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />

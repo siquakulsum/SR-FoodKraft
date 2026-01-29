@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,23 +8,8 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import {
-  Save,
-  Plus,
-  Trash2,
-  Upload,
-  Image as ImageIcon,
-  Monitor,
-  Smartphone,
-  // Play,
-  // Pause,
-  Settings,
-  Eye,
-  Edit3,
-  Home,
-  Star,
-  MessageSquare
-} from 'lucide-react';
+import { useCMSEnhancedStore } from '@/store/cms-enhanced-store';
+import { Loader2, Save, Plus, Trash2, Upload, Image as ImageIcon, Monitor, Smartphone, Settings, Eye, Edit3, Home, Star, MessageSquare } from 'lucide-react';
 
 interface HeroImage {
   id: string;
@@ -305,14 +290,44 @@ export default function HomepageHeroManager() {
   const [homepageHero, setHomepageHero] = useState<HomepageHero>(defaultHomepageHero);
   const [activeTab, setActiveTab] = useState<'hero' | 'featured' | 'explore' | 'events' | 'testimonials' | 'cta' | 'settings'>('hero');
   const [previewMode, setPreviewMode] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
+  const { siteSettings, fetchSiteSettings, updateSiteSetting } = useCMSEnhancedStore();
 
-  const handleSave = () => {
-    // In a real app, this would save to the backend
-    toast({
-      title: 'Homepage Hero Updated',
-      description: 'Your homepage hero section has been saved successfully',
-    });
+  useEffect(() => {
+    fetchSiteSettings();
+  }, []);
+
+  useEffect(() => {
+    const heroSetting = siteSettings.find(s => s.key === 'homepage_hero');
+    if (heroSetting) {
+      try {
+        const parsed = JSON.parse(heroSetting.value);
+        setHomepageHero(parsed);
+      } catch (e) {
+        console.error('Failed to parse homepage hero setting', e);
+      }
+    }
+  }, [siteSettings]);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await updateSiteSetting('homepage_hero', JSON.stringify(homepageHero), 'json');
+
+      toast({
+        title: 'Homepage Hero Updated',
+        description: 'Your homepage hero section has been saved successfully',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Save Failed',
+        description: error.message || 'Failed to save homepage hero section',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const addImage = () => {
@@ -402,10 +417,18 @@ export default function HomepageHeroManager() {
             <span className="hidden sm:inline">{previewMode ? 'Edit Mode' : 'Preview Mode'}</span>
             <span className="sm:hidden">{previewMode ? 'Edit' : 'Preview'}</span>
           </Button>
-          <Button onClick={handleSave} className="bg-gold-500 hover:bg-gold-600 w-full sm:w-auto">
-            <Save className="w-4 h-4 mr-2" />
-            <span className="hidden sm:inline">Save Changes</span>
-            <span className="sm:hidden">Save</span>
+          <Button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="bg-gold-500 hover:bg-gold-600 w-full sm:w-auto"
+          >
+            {isSaving ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4 mr-2" />
+            )}
+            <span className="hidden sm:inline">{isSaving ? 'Saving...' : 'Save Changes'}</span>
+            <span className="sm:hidden">{isSaving ? '...' : 'Save'}</span>
           </Button>
         </div>
       </div>
@@ -428,8 +451,8 @@ export default function HomepageHeroManager() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-3 rounded-lg font-medium transition-all text-xs sm:text-sm ${activeTab === tab.id
-                    ? 'bg-gold-500 text-white shadow-lg'
-                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                  ? 'bg-gold-500 text-white shadow-lg'
+                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
                   }`}
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
@@ -1421,7 +1444,29 @@ export default function HomepageHeroManager() {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <h5 className="font-semibold">Event Types</h5>
-                      <Button size="sm" variant="outline">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          const newEventType = {
+                            id: (homepageHero.eventsSection.eventTypes.length + 1).toString(),
+                            title: '',
+                            description: '',
+                            services: [],
+                            buttonText: '',
+                            buttonLink: '',
+                            image: '',
+                            enabled: true
+                          };
+                          setHomepageHero(prev => ({
+                            ...prev,
+                            eventsSection: {
+                              ...prev.eventsSection,
+                              eventTypes: [...prev.eventsSection.eventTypes, newEventType]
+                            }
+                          }));
+                        }}
+                      >
                         <Plus className="w-4 h-4 mr-2" />
                         Add Event Type
                       </Button>
@@ -2281,10 +2326,10 @@ export default function HomepageHeroManager() {
                       <div className="relative h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg overflow-hidden">
                         <div
                           className={`absolute inset-0 ${homepageHero.overlay.color === 'black' ? 'bg-black' :
-                              homepageHero.overlay.color === 'white' ? 'bg-white' :
-                                homepageHero.overlay.color === 'gray' ? 'bg-gray-500' :
-                                  homepageHero.overlay.color === 'blue' ? 'bg-blue-500' :
-                                    'bg-purple-500'
+                            homepageHero.overlay.color === 'white' ? 'bg-white' :
+                              homepageHero.overlay.color === 'gray' ? 'bg-gray-500' :
+                                homepageHero.overlay.color === 'blue' ? 'bg-blue-500' :
+                                  'bg-purple-500'
                             }`}
                           style={{ opacity: homepageHero.overlay.opacity }}
                         />

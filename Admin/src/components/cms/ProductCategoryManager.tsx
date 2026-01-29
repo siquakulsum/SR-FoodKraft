@@ -207,22 +207,74 @@ export default function ProductCategoryManager() {
   };
 
   const handleAddType = async () => {
-    await addProductType(typeForm);
-    setTypeForm({ name: '', slug: '', icon: null, color: '#6B7280', display_order: 0, is_active: true });
-    setIsAddingType(false);
+    try {
+      if (!typeForm.name.trim()) {
+        toast({
+          title: 'Validation Error',
+          description: 'Type name is required',
+          variant: 'destructive',
+        });
+        return;
+      }
+      await addProductType(typeForm);
+      setTypeForm({ name: '', slug: '', icon: null, color: '#6B7280', display_order: 0, is_active: true });
+      setIsAddingType(false);
+      toast({
+        title: 'Success',
+        description: 'Product type added successfully',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to add product type',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleUpdateType = async () => {
-    if (editingType) {
-      await updateProductType(editingType.id, typeForm);
-      setEditingType(null);
-      setTypeForm({ name: '', slug: '', icon: null, color: '#6B7280', display_order: 0, is_active: true });
+    try {
+      if (!typeForm.name.trim()) {
+        toast({
+          title: 'Validation Error',
+          description: 'Type name is required',
+          variant: 'destructive',
+        });
+        return;
+      }
+      if (editingType) {
+        await updateProductType(editingType.id, typeForm);
+        setEditingType(null);
+        setTypeForm({ name: '', slug: '', icon: null, color: '#6B7280', display_order: 0, is_active: true });
+        toast({
+          title: 'Success',
+          description: 'Product type updated successfully',
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update product type',
+        variant: 'destructive',
+      });
     }
   };
 
   const handleDeleteType = async (id: string) => {
     if (confirm('Are you sure you want to delete this type?')) {
-      await deleteProductType(id);
+      try {
+        await deleteProductType(id);
+        toast({
+          title: 'Success',
+          description: 'Product type deleted successfully',
+        });
+      } catch (error) {
+        toast({
+          title: 'Error',
+          description: 'Failed to delete product type',
+          variant: 'destructive',
+        });
+      }
     }
   };
 

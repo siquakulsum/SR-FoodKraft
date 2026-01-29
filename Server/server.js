@@ -37,6 +37,9 @@ app.use('/api/admin/profile', profileRoutes);
 const inquiryRoutes = require('./routes/inquiryRoutes');
 app.use('/api/inquiries', inquiryRoutes);
 
+const cmsRoutes = require('./routes/cmsRoutes');
+app.use('/api/cms', cmsRoutes);
+
 const customerRoutes = require('./routes/customerRoutes');
 app.use('/api/customers', customerRoutes);
 
@@ -48,6 +51,7 @@ app.use('/api/orders', orderRoutes);
 
 const paymentRoutes = require('./routes/paymentRoutes');
 app.use('/api/payments', paymentRoutes);
+
 
 
 // Test DB Connection
