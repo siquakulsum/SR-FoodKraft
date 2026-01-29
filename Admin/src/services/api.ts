@@ -203,6 +203,16 @@ export const api = {
             }
             throw new Error(data.message || 'Failed to fetch inquiries');
         }
+
+        // Map backend fields
+        if (data.data && data.data.inquiries) {
+            data.data.inquiries = data.data.inquiries.map((inquiry: any) => ({
+                ...inquiry,
+                created_at: inquiry.createdAt || inquiry.created_at,
+                updated_at: inquiry.updatedAt || inquiry.updated_at
+            }));
+        }
+
         return data.data;
     },
 
@@ -514,6 +524,16 @@ export const api = {
 
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || 'Failed to fetch customers');
+
+        // Map backend fields
+        if (data.data) {
+            data.data = data.data.map((customer: any) => ({
+                ...customer,
+                created_at: customer.createdAt || customer.created_at,
+                updated_at: customer.updatedAt || customer.updated_at
+            }));
+        }
+
         return data.data;
     },
 
@@ -727,6 +747,16 @@ export const api = {
             if (response.status === 401) localStorage.removeItem('token');
             throw new Error(data.message || 'Failed to fetch orders');
         }
+
+        // Map backend fields to frontend interface
+        if (data.data.orders) {
+            data.data.orders = data.data.orders.map((order: any) => ({
+                ...order,
+                created_at: order.createdAt || order.created_at,
+                updated_at: order.updatedAt || order.updated_at
+            }));
+        }
+
         return data.data;
     },
 

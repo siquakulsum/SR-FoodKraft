@@ -82,6 +82,7 @@ export default function Dashboard() {
 
     return last7Days.map((date) => {
       const dayOrders = orders.filter((o) => {
+        if (!o.created_at) return false;
         const orderDate = o.created_at.split('T')[0];
         return orderDate === date;
       });
@@ -132,7 +133,7 @@ export default function Dashboard() {
     .slice(0, 3)
     .map(([itemId, quantity]) => {
       const item = menuItems.find(m => m.id === itemId);
-      return { ...item, totalSold: quantity };
+      return { ...item, id: item?.id || itemId, totalSold: quantity };
     })
     .filter(Boolean);
 
