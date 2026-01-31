@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useSearchParams } from 'react-router-dom';
 import { useInquiryStore } from '@/store/inquiry-store';
+import { DeleteModal } from '@/components/DeleteModal';
 import { Search, Eye, MessageSquare, Phone, Mail, Calendar, Users, DollarSign, Star, Clock, CheckCircle, XCircle, AlertCircle, Download, Plus } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -668,6 +669,9 @@ export default function Inquiries() {
   const [editingStatus, setEditingStatus] = useState<string | null>(null);
   const [editingPriority, setEditingPriority] = useState<string | null>(null);
   const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [inquiryToDelete, setInquiryToDelete] = useState<{ id: string, name: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Initial fetch stats
   useEffect(() => {
@@ -746,8 +750,22 @@ export default function Inquiries() {
   };
 
   const handleDelete = (id: string, name: string) => {
-    if (confirm(`Are you sure you want to delete inquiry from ${name}?`)) {
-      deleteInquiry(id);
+    setInquiryToDelete({ id, name });
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!inquiryToDelete) return;
+    setIsDeleting(true);
+    try {
+      await deleteInquiry(inquiryToDelete.id);
+      toast.success('Inquiry deleted successfully');
+      setDeleteModalOpen(false);
+      setInquiryToDelete(null);
+    } catch (error) {
+      toast.error('Failed to delete inquiry');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -1347,6 +1365,17 @@ export default function Inquiries() {
       {selectedInquiry && (
         <InquiryDetailModal inquiry={selectedInquiry} />
       )}
+      <DeleteModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setInquiryToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        title="Delete Inquiry"
+        description={`Are you sure you want to delete the inquiry from ${inquiryToDelete?.name}? This action cannot be undone.`}
+        loading={isDeleting}
+      />
     </div>
   );
 }

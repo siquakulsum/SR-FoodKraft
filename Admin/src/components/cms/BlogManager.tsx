@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useCMSEnhancedStore } from '@/store/cms-enhanced-store';
 import { Newspaper, Plus, Trash2, CreditCard as Edit2, Eye, EyeOff, X, Upload, Calendar } from 'lucide-react';
 import { BlogPost } from '@/types/cms';
+import { toast } from 'sonner';
+import { DeleteModal } from '../DeleteModal';
 
 export default function BlogManager() {
   const {
@@ -30,6 +32,9 @@ export default function BlogManager() {
     published_at: '',
   });
   const [tagInput, setTagInput] = useState('');
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [postToDelete, setPostToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchBlogPosts();
@@ -110,8 +115,10 @@ export default function BlogManager() {
     try {
       const imageUrl = await uploadImage(file, 'blog');
       setFormData({ ...formData, featured_image_url: imageUrl });
+      toast.success('Image uploaded successfully');
     } catch (error) {
       console.error('Upload failed:', error);
+      toast.error('Failed to upload image');
     } finally {
       setIsUploading(false);
     }
@@ -119,6 +126,20 @@ export default function BlogManager() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validation
+    if (!formData.title.trim()) {
+      toast.error('Title is required');
+      return;
+    }
+    if (!formData.slug.trim()) {
+      toast.error('Slug is required');
+      return;
+    }
+    if (!formData.content.trim()) {
+      toast.error('Content is required');
+      return;
+    }
 
     const postData = {
       title: formData.title,
@@ -131,27 +152,52 @@ export default function BlogManager() {
       tags: formData.tags,
       is_published: formData.is_published,
       published_at: formData.published_at || null,
-      views_count: 0,
+      views_count: editingPost ? editingPost.views_count : 0,
     };
 
-    if (editingPost) {
-      await updateBlogPost(editingPost.id, postData);
-    } else {
-      await addBlogPost(postData);
+    try {
+      if (editingPost) {
+        await updateBlogPost(editingPost.id, postData);
+        toast.success('Blog post updated successfully');
+      } else {
+        await addBlogPost(postData);
+        toast.success('Blog post created successfully');
+      }
+      resetForm();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to save blog post');
     }
-    resetForm();
   };
 
   const handleTogglePublished = async (id: string, isPublished: boolean) => {
-    await updateBlogPost(id, {
-      is_published: !isPublished,
-      published_at: !isPublished ? new Date().toISOString() : null,
-    });
+    try {
+      await updateBlogPost(id, {
+        is_published: !isPublished,
+        published_at: !isPublished ? new Date().toISOString() : null,
+      });
+      toast.success(`Blog post ${!isPublished ? 'published' : 'moved to drafts'}`);
+    } catch (error) {
+      toast.error('Failed to update post status');
+    }
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this blog post?')) {
-      await deleteBlogPost(id);
+  const handleDelete = (id: string) => {
+    setPostToDelete(id);
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!postToDelete) return;
+    setIsDeleting(true);
+    try {
+      await deleteBlogPost(postToDelete);
+      toast.success('Blog post deleted successfully');
+      setDeleteModalOpen(false);
+      setPostToDelete(null);
+    } catch (error) {
+      toast.error('Failed to delete blog post');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -431,6 +477,18 @@ export default function BlogManager() {
           </div>
         )}
       </div>
+
+      <DeleteModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setPostToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        loading={isDeleting}
+        title="Delete Blog Post"
+        description="Are you sure you want to delete this blog post? This action cannot be undone."
+      />
     </div>
   );
 }

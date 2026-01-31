@@ -28,6 +28,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
+import { DeleteModal } from '../DeleteModal';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function ProductCategoryManager() {
@@ -57,6 +59,14 @@ export default function ProductCategoryManager() {
   const [showPreview, setShowPreview] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteConfig, setDeleteConfig] = useState<{
+    id?: string;
+    type: 'category' | 'type' | 'bulk';
+    title: string;
+    description: string;
+  } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [categoryForm, setCategoryForm] = useState({
     name: '',
@@ -168,22 +178,14 @@ export default function ProductCategoryManager() {
     }
   };
 
-  const handleDeleteCategory = async (id: string) => {
-    if (confirm('Are you sure you want to delete this category? This action cannot be undone.')) {
-      try {
-        await deleteProductCategory(id);
-        toast({
-          title: 'Success',
-          description: 'Category deleted successfully',
-        });
-      } catch (error) {
-        toast({
-          title: 'Error',
-          description: 'Failed to delete category',
-          variant: 'destructive',
-        });
-      }
-    }
+  const handleDeleteCategory = (id: string) => {
+    setDeleteConfig({
+      id,
+      type: 'category',
+      title: 'Delete Category',
+      description: 'Are you sure you want to delete this category? This action cannot be undone.'
+    });
+    setDeleteModalOpen(true);
   };
 
   const handleEditCategory = (category: ProductCategory) => {
@@ -260,22 +262,14 @@ export default function ProductCategoryManager() {
     }
   };
 
-  const handleDeleteType = async (id: string) => {
-    if (confirm('Are you sure you want to delete this type?')) {
-      try {
-        await deleteProductType(id);
-        toast({
-          title: 'Success',
-          description: 'Product type deleted successfully',
-        });
-      } catch (error) {
-        toast({
-          title: 'Error',
-          description: 'Failed to delete product type',
-          variant: 'destructive',
-        });
-      }
-    }
+  const handleDeleteType = (id: string) => {
+    setDeleteConfig({
+      id,
+      type: 'type',
+      title: 'Delete Type',
+      description: 'Are you sure you want to delete this type? This action cannot be undone.'
+    });
+    setDeleteModalOpen(true);
   };
 
   const handleEditType = (type: ProductType) => {
@@ -339,23 +333,41 @@ export default function ProductCategoryManager() {
     }
   };
 
-  const handleBulkDelete = async () => {
-    if (confirm(`Are you sure you want to delete ${selectedCategories.length} categories? This action cannot be undone.`)) {
-      try {
+  const handleBulkDelete = () => {
+    setDeleteConfig({
+      type: 'bulk',
+      title: 'Bulk Delete Categories',
+      description: `Are you sure you want to delete ${selectedCategories.length} categories? This action cannot be undone.`
+    });
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfig) return;
+    setIsDeleting(true);
+    try {
+      if (deleteConfig.type === 'category') {
+        await deleteProductCategory(deleteConfig.id!);
+        toast({ title: 'Success', description: 'Category deleted successfully' });
+      } else if (deleteConfig.type === 'type') {
+        await deleteProductType(deleteConfig.id!);
+        toast({ title: 'Success', description: 'Product type deleted successfully' });
+      } else if (deleteConfig.type === 'bulk') {
         const promises = selectedCategories.map(id => deleteProductCategory(id));
         await Promise.all(promises);
         setSelectedCategories([]);
-        toast({
-          title: 'Success',
-          description: `${selectedCategories.length} categories deleted`,
-        });
-      } catch (error) {
-        toast({
-          title: 'Error',
-          description: 'Failed to delete categories',
-          variant: 'destructive',
-        });
+        toast({ title: 'Success', description: `${selectedCategories.length} categories deleted` });
       }
+      setDeleteModalOpen(false);
+      setDeleteConfig(null);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Action failed',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -960,6 +972,17 @@ export default function ProductCategoryManager() {
           </div>
         </CardContent>
       </Card>
+      <DeleteModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setDeleteConfig(null);
+        }}
+        onConfirm={confirmDelete}
+        title={deleteConfig?.title}
+        description={deleteConfig?.description}
+        loading={isDeleting}
+      />
     </div>
   );
 }

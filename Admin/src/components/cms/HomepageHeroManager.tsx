@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useCMSEnhancedStore } from '@/store/cms-enhanced-store';
 import { Loader2, Save, Plus, Trash2, Upload, Image as ImageIcon, Monitor, Smartphone, Settings, Eye, Edit3, Home, Star, MessageSquare } from 'lucide-react';
+import { DeleteModal } from '../DeleteModal';
 
 interface HeroImage {
   id: string;
@@ -293,6 +294,13 @@ export default function HomepageHeroManager() {
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
   const { siteSettings, fetchSiteSettings, updateSiteSetting } = useCMSEnhancedStore();
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteConfig, setDeleteConfig] = useState<{
+    id: string;
+    type: 'image' | 'badge';
+    title: string;
+    description: string;
+  } | null>(null);
 
   useEffect(() => {
     fetchSiteSettings();
@@ -311,6 +319,25 @@ export default function HomepageHeroManager() {
   }, [siteSettings]);
 
   const handleSave = async () => {
+    // Validation
+    if (!homepageHero.title.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Main title is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (homepageHero.backgroundImages.length === 0) {
+      toast({
+        title: "Validation Error",
+        description: "At least one background image is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSaving(true);
     try {
       await updateSiteSetting('homepage_hero', JSON.stringify(homepageHero), 'json');
@@ -345,10 +372,13 @@ export default function HomepageHeroManager() {
   };
 
   const removeImage = (id: string) => {
-    setHomepageHero(prev => ({
-      ...prev,
-      backgroundImages: prev.backgroundImages.filter(img => img.id !== id)
-    }));
+    setDeleteConfig({
+      id,
+      type: 'image',
+      title: 'Remove Image',
+      description: 'Are you sure you want to remove this image? This will not be permanent until you save changes.'
+    });
+    setDeleteModalOpen(true);
   };
 
   const updateImageOrder = (id: string, direction: 'up' | 'down') => {
@@ -382,10 +412,32 @@ export default function HomepageHeroManager() {
   };
 
   const removeFeatureBadge = (id: string) => {
-    setHomepageHero(prev => ({
-      ...prev,
-      featureBadges: prev.featureBadges.filter(badge => badge.id !== id)
-    }));
+    setDeleteConfig({
+      id,
+      type: 'badge',
+      title: 'Remove Badge',
+      description: 'Are you sure you want to remove this badge? This will not be permanent until you save changes.'
+    });
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (!deleteConfig) return;
+    if (deleteConfig.type === 'image') {
+      setHomepageHero(prev => ({
+        ...prev,
+        backgroundImages: prev.backgroundImages.filter(img => img.id !== deleteConfig.id)
+      }));
+      toast({ title: "Image Removed", description: "Click 'Save Changes' to update permanently." });
+    } else {
+      setHomepageHero(prev => ({
+        ...prev,
+        featureBadges: prev.featureBadges.filter(badge => badge.id !== deleteConfig.id)
+      }));
+      toast({ title: "Badge Removed", description: "Click 'Save Changes' to update permanently." });
+    }
+    setDeleteModalOpen(false);
+    setDeleteConfig(null);
   };
 
   const getBadgeColorClass = (color: string) => {
@@ -2345,6 +2397,16 @@ export default function HomepageHeroManager() {
           </Card>
         )}
       </div>
+      <DeleteModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setDeleteConfig(null);
+        }}
+        onConfirm={confirmDelete}
+        title={deleteConfig?.title}
+        description={deleteConfig?.description}
+      />
     </div>
   );
 }

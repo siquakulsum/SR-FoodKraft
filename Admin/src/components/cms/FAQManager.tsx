@@ -3,6 +3,7 @@ import { useCMSEnhancedStore } from '@/store/cms-enhanced-store';
 import { CircleHelp as HelpCircle, Plus, Trash2, CreditCard as Edit2, Eye, EyeOff, X, Loader2 } from 'lucide-react';
 import { FAQ } from '@/types/cms';
 import { useToast } from '@/hooks/use-toast';
+import { DeleteModal } from '../DeleteModal';
 
 export default function FAQManager() {
   const {
@@ -25,6 +26,10 @@ export default function FAQManager() {
     is_active: true,
     display_order: 0,
   });
+
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [faqToDelete, setFaqToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchFAQs();
@@ -56,8 +61,26 @@ export default function FAQManager() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSaving(true);
 
+    // Validation
+    if (!formData.question.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Question is required",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!formData.answer.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Answer is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSaving(true);
     try {
       if (editingFAQ) {
         await updateFAQ(editingFAQ.id, formData);
@@ -72,7 +95,6 @@ export default function FAQManager() {
           description: "The new FAQ has been added successfully.",
         });
       }
-      // Refresh the FAQ list to show the changes
       await fetchFAQs();
       resetForm();
     } catch (err: any) {
@@ -104,23 +126,31 @@ export default function FAQManager() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this FAQ?')) {
-      try {
-        await deleteFAQ(id);
-        // Refresh the FAQ list to remove the deleted item
-        await fetchFAQs();
-        toast({
-          title: "FAQ Deleted",
-          description: "The FAQ has been removed successfully.",
-        });
-      } catch (err: any) {
-        toast({
-          title: "Delete Failed",
-          description: err.message || "Failed to delete the FAQ.",
-          variant: "destructive",
-        });
-      }
+  const handleDelete = (id: string) => {
+    setFaqToDelete(id);
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!faqToDelete) return;
+    setIsDeleting(true);
+    try {
+      await deleteFAQ(faqToDelete);
+      await fetchFAQs();
+      toast({
+        title: "FAQ Deleted",
+        description: "The FAQ has been removed successfully.",
+      });
+      setDeleteModalOpen(false);
+      setFaqToDelete(null);
+    } catch (err: any) {
+      toast({
+        title: "Delete Failed",
+        description: err.message || "Failed to delete the FAQ.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -370,6 +400,18 @@ export default function FAQManager() {
           </div>
         )}
       </div>
+
+      <DeleteModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setFaqToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        loading={isDeleting}
+        title="Delete FAQ"
+        description="Are you sure you want to delete this FAQ? This action cannot be undone."
+      />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { useSettingsStore } from '@/store/settings-store';
 import { Truck, MapPin, Clock, DollarSign, Plus, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { DeleteModal } from '../DeleteModal';
 
 interface DeliveryZone {
   id: string;
@@ -22,6 +23,8 @@ export default function DeliveryChargesManager() {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [deliveryZones, setDeliveryZones] = useState<DeliveryZone[]>(settings.deliveryZones);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [zoneToDelete, setZoneToDelete] = useState<string | null>(null);
   const [newZone, setNewZone] = useState({
     name: '',
     description: '',
@@ -37,26 +40,53 @@ export default function DeliveryChargesManager() {
   }, [settings.deliveryZones, isEditing]);
 
   const handleAddZone = () => {
-    if (newZone.name && newZone.deliveryCharges) {
-      const zone: DeliveryZone = {
-        id: Date.now().toString(),
-        name: newZone.name,
-        description: newZone.description,
-        deliveryCharges: parseFloat(newZone.deliveryCharges),
-        estimatedTime: newZone.estimatedTime,
-        isActive: true,
-      };
-      setDeliveryZones([...deliveryZones, zone]);
-      setNewZone({ name: '', description: '', deliveryCharges: '', estimatedTime: '' });
+    if (!newZone.name.trim()) {
       toast({
-        title: "Zone Added",
-        description: "New delivery zone added to the list. Remember to save changes.",
+        title: "Validation Error",
+        description: "Zone name is required",
+        variant: "destructive",
       });
+      return;
     }
+    if (!newZone.deliveryCharges) {
+      toast({
+        title: "Validation Error",
+        description: "Delivery charges are required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const zone: DeliveryZone = {
+      id: Date.now().toString(),
+      name: newZone.name,
+      description: newZone.description,
+      deliveryCharges: parseFloat(newZone.deliveryCharges),
+      estimatedTime: newZone.estimatedTime,
+      isActive: true,
+    };
+    setDeliveryZones([...deliveryZones, zone]);
+    setNewZone({ name: '', description: '', deliveryCharges: '', estimatedTime: '' });
+    toast({
+      title: "Zone Added",
+      description: "Remember to save changes to persist.",
+    });
   };
 
   const handleDeleteZone = (id: string) => {
-    setDeliveryZones(deliveryZones.filter(zone => zone.id !== id));
+    setZoneToDelete(id);
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (!zoneToDelete) return;
+    setDeliveryZones(deliveryZones.filter(zone => zone.id !== zoneToDelete));
+    toast({
+      title: "Zone Removed",
+      description: "Zone removed. Click 'Save Changes' to update permanently.",
+    });
+    setDeleteModalOpen(false);
+    setZoneToDelete(null);
   };
 
   const handleToggleZone = (id: string) => {
@@ -329,6 +359,16 @@ export default function DeliveryChargesManager() {
           </div>
         </CardContent>
       </Card>
+      <DeleteModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setZoneToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        title="Delete Delivery Zone"
+        description="Are you sure you want to delete this delivery zone? This action cannot be undone."
+      />
     </div>
   );
 }
