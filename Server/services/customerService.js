@@ -46,9 +46,10 @@ const listCustomers = async (query) => {
     const whereClause = { role: 'customer' };
 
     if (search) {
+        const lowerSearch = search.toLowerCase();
         whereClause[Op.or] = [
-            { name: { [Op.like]: `%${search}%` } },
-            { email: { [Op.like]: `%${search}%` } },
+            Sequelize.where(Sequelize.fn('LOWER', Sequelize.col('name')), 'LIKE', `%${lowerSearch}%`),
+            Sequelize.where(Sequelize.fn('LOWER', Sequelize.col('email')), 'LIKE', `%${lowerSearch}%`),
             { phone: { [Op.like]: `%${search}%` } }
         ];
     }
@@ -60,45 +61,52 @@ const listCustomers = async (query) => {
         } else if (status === 'blocked') {
             whereClause.is_blocked = true;
         }
-        // 'all' or undefined implies no status filter (except role=customer)
+    }
+
+    // Map sort keys to literal columns or DB columns
+    let orderClause = [[sortBy, sortOrder]];
+    if (sortBy === 'orders') {
+        orderClause = [[Sequelize.literal('ordersCount'), sortOrder]];
+    } else if (sortBy === 'spending') {
+        orderClause = [[Sequelize.literal('totalSpent'), sortOrder]];
+    } else if (sortBy === 'created_at') {
+        orderClause = [['created_at', sortOrder]];
     }
 
     const { count, rows } = await User.findAndCountAll({
         where: whereClause,
         limit,
         offset,
-        order: [[sortBy, sortOrder]],
-        attributes: { exclude: ['password_hash', 'reset_password_token'] },
-        // Include aggregated data if needed for table (Orders Count, Total Spent)
-        // Doing strictly via subqueries or separate aggregate queries might be expensive for list.
-        // For now, let's keep it simple or use a subquery if performance is critical, but standard findAndCountAll is safer first.
-        // The requirements say "Orders Count" and "Total Spent" in the table.
-        // We can fetch these associated or calculate them.
-        // Let's try to include them if possible, or fetch them in a map.
+        order: orderClause,
+        attributes: {
+            exclude: ['password_hash', 'reset_password_token'],
+            include: [
+                [
+                    Sequelize.literal(`(
+                        SELECT COUNT(*)
+                        FROM orders AS o
+                        WHERE o.user_id = User.id
+                    )`),
+                    'ordersCount'
+                ],
+                [
+                    Sequelize.literal(`(
+                        SELECT COALESCE(SUM(total_amount), 0)
+                        FROM orders AS o
+                        WHERE o.user_id = User.id
+                        AND o.payment_status = 'paid'
+                    )`),
+                    'totalSpent'
+                ]
+            ]
+        },
     });
-
-    // Fetch aggregates for the current page rows
-    const enrichedRows = await Promise.all(rows.map(async (user) => {
-        const ordersCount = await Order.count({ where: { user_id: user.id } });
-        const totalSpent = await Order.sum('total_amount', {
-            where: {
-                user_id: user.id,
-                payment_status: 'paid' // Assuming only paid orders count towards spend
-            }
-        }) || 0;
-
-        return {
-            ...user.toJSON(),
-            ordersCount,
-            totalSpent
-        };
-    }));
 
     return {
         total: count,
         totalPages: Math.ceil(count / limit),
         currentPage: page,
-        customers: enrichedRows
+        customers: rows
     };
 };
 
@@ -185,14 +193,31 @@ const unblockCustomer = async (id) => {
     return { message: 'Customer unblocked successfully' };
 };
 
-const exportCustomersData = async () => {
-    // Fetch all customers? Or filtered? Usually export is generic or based on current filter.
-    // Requirement: "Export filtered list". But let's start with all or accept query params.
-    // Simulating "All" for MVP as passing query params to service function needs refactoring listCustomers to return stream or raw data.
-    // Let's re-use filtered logic if possible, or just dump all for now.
+const exportCustomersData = async (query) => {
+    // Reuse list logic basics to apply filters
+    const { search, status } = query || {};
+    const whereClause = { role: 'customer' };
+
+    if (search) {
+        const lowerSearch = search.toLowerCase();
+        whereClause[Op.or] = [
+            Sequelize.where(Sequelize.fn('LOWER', Sequelize.col('name')), 'LIKE', `%${lowerSearch}%`),
+            Sequelize.where(Sequelize.fn('LOWER', Sequelize.col('email')), 'LIKE', `%${lowerSearch}%`),
+            { phone: { [Op.like]: `%${search}%` } }
+        ];
+    }
+
+    if (status) {
+        if (status === 'active') {
+            whereClause.is_active = true;
+            whereClause.is_blocked = false;
+        } else if (status === 'blocked') {
+            whereClause.is_blocked = true;
+        }
+    }
 
     const customers = await User.findAll({
-        where: { role: 'customer' },
+        where: whereClause,
         attributes: ['id', 'name', 'email', 'phone', 'created_at', 'is_active', 'is_blocked'],
         raw: true
     });

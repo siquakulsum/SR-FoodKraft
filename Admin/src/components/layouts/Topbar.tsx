@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/auth-store';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import { useToast } from '@/hooks/use-toast';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import GlobalSearch from '../GlobalSearch';
 
 interface TopbarProps {
@@ -165,8 +166,16 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
         >
           <div className="relative">
             <div className="absolute inset-0 gradient-primary rounded-full blur-md opacity-40 group-hover:opacity-60 transition-opacity" />
-            <div className="relative w-8 lg:w-10 h-8 lg:h-10 rounded-full gradient-primary flex items-center justify-center text-white font-bold text-xs lg:text-sm premium-shadow">
-              {admin?.name?.charAt(0) || 'A'}
+            <div className="relative w-8 lg:w-10 h-8 lg:h-10 rounded-full gradient-primary flex items-center justify-center text-white font-bold text-xs lg:text-sm premium-shadow overflow-hidden">
+              <Avatar className="w-full h-full">
+                <AvatarImage
+                  src={admin?.avatar_url ? `http://localhost:5000${admin.avatar_url}` : ''}
+                  className="object-cover"
+                />
+                <AvatarFallback className="bg-transparent text-white w-full h-full flex items-center justify-center">
+                  {admin?.name?.charAt(0) || 'A'}
+                </AvatarFallback>
+              </Avatar>
             </div>
             <div className="absolute -bottom-0.5 -right-0.5 w-3 lg:w-3.5 h-3 lg:h-3.5 bg-success rounded-full border-2 border-white dark:border-slate-800" />
           </div>

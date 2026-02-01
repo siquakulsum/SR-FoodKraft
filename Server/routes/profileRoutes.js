@@ -29,4 +29,10 @@ router.post('/avatar', upload.single('avatar'), profileController.uploadAvatar);
 // DELETE /admin/profile/avatar
 router.delete('/avatar', profileController.removeAvatar);
 
+// POST /admin/profile/verify-otp
+router.post('/verify-otp', profileController.verifyOtp);
+
+// POST /admin/profile/change-password
+router.post('/change-password', profileController.changePassword);
+
 module.exports = router;

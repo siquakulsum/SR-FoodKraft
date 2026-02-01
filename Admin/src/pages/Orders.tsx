@@ -472,7 +472,7 @@ export default function Orders() {
                       )}
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">
-                      {new Date(order.created_at).toLocaleDateString()}
+                      {new Date(order.createdAt || order.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
@@ -540,7 +540,7 @@ export default function Orders() {
                   <div>
                     <p className="text-lg font-bold text-slate-900 dark:text-white">₹{order.total_amount.toLocaleString()}</p>
                     <p className="text-sm text-slate-600 dark:text-slate-400">
-                      {new Date(order.created_at).toLocaleDateString()}
+                      {new Date(order.createdAt || order.created_at).toLocaleDateString()}
                     </p>
                   </div>
                 </div>

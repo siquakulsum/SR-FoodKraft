@@ -1,3 +1,4 @@
+const cron = require('node-cron');
 const { Offer, AuditLog } = require('../../models');
 const { Op } = require('sequelize');
 
@@ -36,14 +37,17 @@ const expireOffers = async () => {
 };
 
 const startCron = () => {
-    // Run immediately on startup
+    // Run immediately on startup to catch anything missed while down
     expireOffers();
 
-    // Run every 24 hours (24 * 60 * 60 * 1000 ms)
-    const ONE_DAY = 24 * 60 * 60 * 1000;
-    setInterval(expireOffers, ONE_DAY);
+    // Schedule task check every midnight
+    // 0 0 * * * = At 00:00 every day
+    cron.schedule('0 0 * * *', () => {
+        console.log('[Cron] Running scheduled offer expiry check...');
+        expireOffers();
+    });
 
-    console.log('✓ Offers auto-expiry cron job started');
+    console.log('✓ Offers auto-expiry cron job started (Schedule: 0 0 * * *)');
 };
 
 module.exports = { startCron };

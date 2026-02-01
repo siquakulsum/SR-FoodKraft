@@ -10,11 +10,31 @@ const getDashboardMetrics = async (req, res, next) => {
     }
 };
 
+const { Order } = require('../models');
+
+// Helper to check if string is UUID
+const isUUID = (str) => {
+    const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return regex.test(str);
+};
+
 const addPayment = async (req, res, next) => {
     try {
         const { error } = validateAddPayment(req.body);
         if (error) {
             return res.status(400).json({ success: false, message: error.details[0].message });
+        }
+
+        let { order_id } = req.body;
+
+        // Smart Resolution: If order_id isn't a UUID, assume it's an Order Number (e.g., ORD-xxxx)
+        if (!isUUID(order_id)) {
+            const order = await Order.findOne({ where: { order_number: order_id } });
+            if (!order) {
+                return res.status(404).json({ success: false, message: `Order with number '${order_id}' not found.` });
+            }
+            // Swap with resolved UUID
+            req.body.order_id = order.id;
         }
 
         const payment = await paymentService.addPayment(req.body, req.user ? req.user.id : null, req.ip);

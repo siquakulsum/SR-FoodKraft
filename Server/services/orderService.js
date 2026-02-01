@@ -7,9 +7,118 @@ const {
     OrderStatusHistory,
     Notification,
     MenuItem,
+    Offer, // Added Offer if needed directly, but usually via service
     sequelize
 } = require('../models');
 const { Op } = require('sequelize');
+const offersService = require('../modules/offers/offersService');
+
+const createOrder = async (orderData, userId) => {
+    const transaction = await sequelize.transaction();
+    try {
+        const {
+            items,
+            offer_code,
+            order_type,
+            delivery_address_id,
+            special_instructions,
+            payment_method,
+            delivery_date,
+            delivery_time
+        } = orderData;
+
+        // 1. Calculate Subtotal
+        let subtotal = 0;
+        const processItems = items.map(item => {
+            const total = parseFloat(item.quantity) * parseFloat(item.unit_price);
+            subtotal += total;
+            return {
+                ...item,
+                total_price: total
+            };
+        });
+
+        // 2. Validate Offer (If applied)
+        let discountAmount = 0;
+        let appliedOfferId = null;
+
+        if (offer_code) {
+            const validation = await offersService.validateOffer(offer_code, userId, subtotal);
+            // validateOffer throws if invalid
+            discountAmount = parseFloat(validation.discountAmount);
+            appliedOfferId = validation.offer.id;
+        }
+
+        // 3. Calculate Final Total
+        // Simplified Logic: Total = Subtotal - Discount + Taxes/Delivery
+        // For simulation, assuming fixed delivery/tax or generated elsewhere.
+        const deliveryCharge = order_type === 'delivery' ? 50 : 0;
+        const gstAmount = (subtotal - discountAmount) * 0.05; // 5% GST
+        const serviceCharge = 0;
+
+        let totalAmount = subtotal - discountAmount + deliveryCharge + gstAmount + serviceCharge;
+        if (totalAmount < 0) totalAmount = 0;
+
+        // 4. Generate Order Number
+        const orderNumber = await generateOrderNumber();
+
+        // 5. Create Order
+        const order = await Order.create({
+            order_number: orderNumber,
+            user_id: userId,
+            status: 'pending',
+            order_type,
+            payment_status: 'pending', // Initial status
+            payment_method,
+            subtotal,
+            discount_amount: discountAmount,
+            delivery_charges: deliveryCharge,
+            service_charges: serviceCharge,
+            gst_amount: gstAmount,
+            total_amount: totalAmount,
+            special_instructions,
+            coupon_code: offer_code || null, // Storing code for reference
+            delivery_address_json: delivery_address_id ? { id: delivery_address_id } : { type: order_type }, // Ensure not null
+            event_date: delivery_date || new Date(), // Map delivery_date to event_date, default to today
+            event_time: delivery_time || new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) // Default to now HH:mm
+        }, { transaction });
+
+        // 6. Create Order Items
+        const orderItemsData = processItems.map(item => ({
+            order_id: order.id,
+            menu_item_id: item.menu_item_id,
+            menu_item_name: item.menu_item_name,
+            quantity: item.quantity,
+            unit_type: item.unit_type,
+            unit_price: item.unit_price,
+            total_price: item.total_price,
+            special_instructions: item.special_instructions
+        }));
+
+        await OrderItem.bulkCreate(orderItemsData, { transaction });
+
+        // 7. Track Offer Usage (If applied)
+        if (appliedOfferId) {
+            await offersService.trackUsage(appliedOfferId, userId, order.id);
+        }
+
+        // 8. Create History Entry
+        await OrderStatusHistory.create({
+            order_id: order.id,
+            status: 'pending',
+            changed_by: userId,
+            notes: 'Order placed successfully'
+        }, { transaction });
+
+        await transaction.commit();
+
+        return await getOrderById(order.id);
+
+    } catch (error) {
+        await transaction.rollback();
+        throw error;
+    }
+};
 
 const generateOrderNumber = async () => {
     // Simple generation logic: ORD + timestamp or increment
@@ -324,5 +433,6 @@ module.exports = {
     updateOrderStatus,
     updateOrderDetails,
     deleteOrder,
-    generateOrderNumber
+    generateOrderNumber,
+    createOrder
 };

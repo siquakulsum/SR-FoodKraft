@@ -330,7 +330,7 @@ export default function Dashboard() {
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-400">New & Active Customers</p>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400">New Signups Today</p>
               <p className="text-2xl font-bold text-slate-900 dark:text-white">{stats.newCustomersToday}</p>
             </div>
             <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full">

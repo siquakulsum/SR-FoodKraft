@@ -11,6 +11,7 @@ import { Upload, X, Camera, Crop } from 'lucide-react';
 
 export default function Profile() {
   const { admin, updateProfile } = useAuthStore();
+
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     name: admin?.name || '',
@@ -222,7 +223,10 @@ export default function Profile() {
               onDrop={handleDrop}
             >
               <Avatar className="w-24 h-24 ring-4 ring-slate-200 dark:ring-slate-700">
-                <AvatarImage src={previewImage || admin.avatar_url} />
+                <AvatarImage
+                  src={admin.avatar_url ? `http://localhost:5000${admin.avatar_url}` : ''}
+                  className="object-cover"
+                />
                 <AvatarFallback className="bg-gold-500 text-white text-2xl">
                   {admin.name?.charAt(0)}
                 </AvatarFallback>

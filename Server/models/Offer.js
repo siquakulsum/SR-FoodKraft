@@ -40,6 +40,21 @@ module.exports = (sequelize) => {
             type: DataTypes.DECIMAL(10, 2),
             allowNull: true,
         },
+        usage_limit: {
+            type: DataTypes.INTEGER,
+            allowNull: true,
+            comment: 'Total number of times this offer can be used globally'
+        },
+        usage_count: {
+            type: DataTypes.INTEGER,
+            defaultValue: 0,
+            comment: 'Current total usage count'
+        },
+        user_usage_limit: {
+            type: DataTypes.INTEGER,
+            defaultValue: 1,
+            comment: 'Max times a single user can use this offer'
+        },
     }, {
         tableName: 'offers',
         timestamps: true,

@@ -98,6 +98,11 @@ const changePassword = asyncHandler(async (req, res) => {
     sendResponse(res, 200, true, result.message);
 });
 
+const getUsers = asyncHandler(async (req, res) => {
+    const users = await authService.getUsers();
+    sendResponse(res, 200, true, 'Users fetched successfully', users);
+});
+
 module.exports = {
     register,
     login,
@@ -105,5 +110,6 @@ module.exports = {
     resetPassword,
     getMe,
     updateMe,
-    changePassword
+    changePassword,
+    getUsers
 };

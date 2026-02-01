@@ -12,7 +12,11 @@ const { Op } = require('sequelize');
 const getDashboardData = async () => {
     // KPI Cards
     // 1. Total Orders
-    const totalOrdersPromise = Order.count();
+    const totalOrdersPromise = Order.count({
+        where: {
+            status: { [Op.ne]: 'cancelled' }
+        }
+    });
 
     // 2. Total Revenue (Success payments)
     const totalRevenuePromise = Payment.sum('amount', {
@@ -38,10 +42,12 @@ const getDashboardData = async () => {
     });
 
     // 6. Pending Orders
+    // 6. Pending Orders
     const pendingOrdersPromise = Order.count({
         where: {
-            status: { [Op.ne]: 'delivered' } // Assuming 'delivered' is the final state. Or specifically 'pending'?
-            // Prompt says: "Pending Orders -> GET /orders?status!=delivered"
+            status: {
+                [Op.notIn]: ['delivered', 'cancelled']
+            }
         }
     });
 
@@ -56,6 +62,30 @@ const getDashboardData = async () => {
     // 8. Pending Payments
     const pendingPaymentsPromise = Payment.count({
         where: { status: 'pending' }
+    });
+
+    // 9. Active Menu Items (TC-07)
+    const activeMenuItemsPromise = MenuItem.count({
+        where: { is_available: true }
+    });
+
+    // 10. Today's Schedule (TC-12, TC-14, TC-15)
+    // Fetch orders for today, sorted by event_time
+    const todaysSchedulePromise = Order.findAll({
+        where: {
+            event_date: {
+                [Op.eq]: sequelize.fn('DATE', sequelize.fn('NOW')) // Compare date part only
+            },
+            status: { [Op.ne]: 'cancelled' }
+        },
+        order: [['event_time', 'ASC']],
+        include: [
+            {
+                model: User,
+                as: 'user',
+                attributes: ['name', 'phone']
+            }
+        ]
     });
 
 
@@ -161,7 +191,9 @@ const getDashboardData = async () => {
         ordersByStatus,
         ordersByType,
         salesLast7Days,
-        topSellingItems
+        topSellingItems,
+        activeMenuItems,
+        todaysSchedule
     ] = await Promise.all([
         totalOrdersPromise,
         totalRevenuePromise,
@@ -176,8 +208,34 @@ const getDashboardData = async () => {
         ordersByStatusPromise,
         ordersByTypePromise,
         salesLast7DaysPromise,
-        topSellingItemsPromise
+        topSellingItemsPromise,
+        activeMenuItemsPromise,
+        todaysSchedulePromise
     ]);
+
+    // Post-process Sales Last 7 Days to fill missing dates with 0
+    const salesMap = new Map();
+    salesLast7Days.forEach(item => {
+        const dateStr = item.getDataValue('date');
+        salesMap.set(dateStr, item);
+    });
+
+    const filledSalesLast7Days = [];
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split('T')[0];
+
+        if (salesMap.has(dateStr)) {
+            filledSalesLast7Days.push(salesMap.get(dateStr));
+        } else {
+            filledSalesLast7Days.push({
+                date: dateStr,
+                revenue: 0,
+                count: 0
+            });
+        }
+    }
 
     return {
         stats: {
@@ -188,14 +246,16 @@ const getDashboardData = async () => {
             todayRevenue: todayRevenue || 0,
             pendingOrders,
             newCustomersToday,
-            pendingPayments
+            pendingPayments,
+            activeMenuItems
         },
         recentOrders,
         recentInquiries,
+        todaysSchedule,
         charts: {
             ordersByStatus,
             ordersByType,
-            salesLast7Days,
+            salesLast7Days: filledSalesLast7Days,
             topSellingItems
         }
     };

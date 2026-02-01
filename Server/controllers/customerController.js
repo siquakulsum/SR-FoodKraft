@@ -107,7 +107,7 @@ const unblockCustomer = async (req, res, next) => {
 
 const exportCustomers = async (req, res, next) => {
     try {
-        const csvData = await customerService.exportCustomersData();
+        const csvData = await customerService.exportCustomersData(req.query);
         res.header('Content-Type', 'text/csv');
         res.attachment('customers.csv');
         return res.send(csvData);

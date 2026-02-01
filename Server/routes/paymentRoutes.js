@@ -19,3 +19,4 @@ router.patch('/:id', protect, authorize('admin'), paymentController.updatePaymen
 router.delete('/:id', protect, authorize('admin'), paymentController.deletePayment);
 
 module.exports = router;
+

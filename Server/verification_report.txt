@@ -1,0 +1,5 @@
+✓ Database connected
+✓ Test User created
+✓ Test MenuItem created
+✓ Limited Offer created
+Verification Error: Lock wait timeout exceeded; try restarting transaction

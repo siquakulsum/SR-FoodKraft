@@ -254,6 +254,14 @@ const changePassword = async (userId, currentPassword, newPassword) => {
     return { message: 'Password updated successfully' };
 };
 
+const getUsers = async () => {
+    const users = await User.findAll({
+        attributes: ['id', 'name', 'email', 'role'],
+        where: { is_blocked: false }
+    });
+    return users;
+};
+
 module.exports = {
     register,
     login,
@@ -261,5 +269,6 @@ module.exports = {
     resetPassword,
     updateProfile,
     getProfile,
-    changePassword
+    changePassword,
+    getUsers
 };

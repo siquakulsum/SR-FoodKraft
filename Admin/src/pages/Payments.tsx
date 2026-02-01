@@ -47,7 +47,7 @@ function AddPaymentModal({ onSuccess }: { onSuccess: () => void }) {
       transaction_id: formData.transaction_id,
       order_id: formData.order_id,
       amount: parseFloat(formData.amount),
-      payment_mode: formData.payment_mode,
+      payment_method: formData.payment_mode,
       status: formData.status,
     };
 
@@ -539,7 +539,7 @@ export default function Payments() {
                       {payment.transaction_id || '-'}
                     </TableCell>
                     <TableCell>{payment.customer_name || 'N/A'}</TableCell>
-                    <TableCell>₹{payment.amount.toLocaleString()}</TableCell>
+                    <TableCell>{Number(payment.amount).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</TableCell>
                     <TableCell>
                       <Badge className={paymentModeColors[payment.payment_mode] || 'bg-gray-100'}>
                         {payment.payment_mode?.toUpperCase()}
@@ -551,7 +551,7 @@ export default function Payments() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {new Date(payment.created_at).toLocaleString()}
+                      {new Date(payment.createdAt || payment.created_at).toLocaleString()}
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
@@ -588,7 +588,7 @@ export default function Payments() {
                       <p className="text-sm text-slate-600 dark:text-slate-400">{payment.customer_name || 'N/A'}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-lg font-bold text-slate-900 dark:text-white">₹{payment.amount.toLocaleString()}</p>
+                      <p className="text-lg font-bold text-slate-900 dark:text-white">{Number(payment.amount).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</p>
                     </div>
                   </div>
 
@@ -603,7 +603,7 @@ export default function Payments() {
 
                   <div className="flex items-center justify-between mt-2">
                     <div className="text-sm text-slate-600 dark:text-slate-400">
-                      {new Date(payment.created_at).toLocaleString()}
+                      {new Date(payment.createdAt || payment.created_at).toLocaleString()}
                     </div>
                     <div className="flex gap-2">
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleView(payment)}>
@@ -651,7 +651,7 @@ export default function Payments() {
                 </div>
                 <div>
                   <label className="text-xs text-slate-500">Amount</label>
-                  <p className="font-medium">₹{selectedPayment.amount}</p>
+                  <p className="font-medium">{Number(selectedPayment.amount).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</p>
                 </div>
                 <div>
                   <label className="text-xs text-slate-500">Customer</label>
@@ -667,7 +667,7 @@ export default function Payments() {
                 </div>
                 <div>
                   <label className="text-xs text-slate-500">Date</label>
-                  <p className="text-sm">{new Date(selectedPayment.created_at).toLocaleString()}</p>
+                  <p className="text-sm">{new Date(selectedPayment.createdAt || selectedPayment.created_at).toLocaleString()}</p>
                 </div>
               </div>
 

@@ -41,7 +41,7 @@ module.exports = (sequelize) => {
             allowNull: true,
         },
         image_url: {
-            type: DataTypes.STRING,
+            type: DataTypes.TEXT, // Changed from STRING to TEXT to support long URLs
             allowNull: true,
         },
         is_vegetarian: {

@@ -143,11 +143,12 @@ const findInquiries = async (filters) => {
 
     // Search filter (name, email, phone, event_type)
     if (search) {
+        const lowerSearch = search.toLowerCase();
         where[Op.or] = [
-            { name: { [Op.like]: `%${search}%` } },
-            { email: { [Op.like]: `%${search}%` } },
-            { phone: { [Op.like]: `%${search}%` } },
-            { event_type: { [Op.like]: `%${search}%` } }
+            sequelize.where(sequelize.fn('LOWER', sequelize.col('Inquiry.name')), 'LIKE', `%${lowerSearch}%`),
+            sequelize.where(sequelize.fn('LOWER', sequelize.col('Inquiry.email')), 'LIKE', `%${lowerSearch}%`),
+            { phone: { [Op.like]: `%${search}%` } }, // Phone is usually numeric, keep like
+            sequelize.where(sequelize.fn('LOWER', sequelize.col('Inquiry.event_type')), 'LIKE', `%${lowerSearch}%`)
         ];
     }
 

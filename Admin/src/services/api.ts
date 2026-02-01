@@ -81,7 +81,7 @@ export const api = {
 
     updateProfile: async (updates: Partial<Admin>): Promise<Admin> => {
         // Use the new Admin Profile API
-        const response = await fetch(`/admin/profile`, {
+        const response = await fetch(`/api/admin/profile`, {
             method: 'PATCH',
             headers: getHeaders(),
             body: JSON.stringify(updates),
@@ -95,7 +95,7 @@ export const api = {
     },
 
     changePassword: async (currentPassword: string, newPassword: string): Promise<string> => {
-        const response = await fetch(`${API_URL}/change-password`, {
+        const response = await fetch(`/api/admin/profile/change-password`, {
             method: 'POST',
             headers: getHeaders(),
             body: JSON.stringify({ currentPassword, newPassword }),
@@ -106,6 +106,20 @@ export const api = {
             throw new Error(data.message || 'Failed to change password');
         }
         return data.message;
+    },
+
+    verifyOtp: async (otp: string, contact_value: string, update_data: any): Promise<Admin> => {
+        const response = await fetch(`/api/admin/profile/verify-otp`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({ otp, contact_value, update_data }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'OTP verification failed');
+        }
+        return data.data;
     },
 
     uploadAvatar: async (file: File): Promise<{ avatar_url: string }> => {
@@ -119,7 +133,7 @@ export const api = {
         }
         // Content-Type is NOT set for FormData so browser can set boundary
 
-        const response = await fetch(`/admin/profile/avatar`, {
+        const response = await fetch(`/api/admin/profile/avatar`, {
             method: 'POST',
             headers: headers,
             body: formData,
@@ -141,7 +155,7 @@ export const api = {
             headers['Authorization'] = `Bearer ${token}`;
         }
 
-        const response = await fetch(`/admin/profile/avatar`, {
+        const response = await fetch(`/api/admin/profile/avatar`, {
             method: 'DELETE',
             headers: headers,
         });
@@ -613,6 +627,24 @@ export const api = {
         return data.data;
     },
 
+    getUsers: async () => {
+        // Fetch users for assignment (e.g. admins/staff)
+        // Assuming /api/users endpoint exists or reusing customers endpoint if staff are mixed
+        // For now, let's use /api/auth/users if it exists, or /api/customers?role=admin if designed that way.
+        // Based on analysis, let's try a direct endpoint or fallback to known user endpoint.
+        // Inspecting auth-store/api, there is no direct 'getUsers' for admins yet.
+        // Let's assume a generic GET /api/users for now, or use the existing customer one if they share tables.
+        // Re-reading codebase: We have User model.
+        // Let's implement GET /api/users at backend if missing?
+        // Wait, I am editing frontend. I will call GET /api/users.
+        const response = await fetch('/api/users', {
+            headers: getHeaders()
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to fetch users');
+        return data.data || [];
+    },
+
     // Menu Management API methods
     getMenuItems: async (params?: any) => {
         const queryParams = new URLSearchParams();
@@ -873,7 +905,7 @@ export const api = {
             order_id: p.order_id,
             amount: p.amount,
             status: p.status,
-            created_at: p.created_at,
+            created_at: p.createdAt || p.created_at,
             payment_mode: p.payment_method,
             customer_name: p.order?.user?.name || 'Walk-in Customer',
             customer_id: p.order?.user?.id || '',
@@ -888,14 +920,10 @@ export const api = {
     },
 
     addPayment: async (paymentData: any) => {
-        const payload = {
-            ...paymentData,
-            payment_method: paymentData.payment_mode
-        };
         const response = await fetch('/api/payments', {
             method: 'POST',
             headers: getHeaders(),
-            body: JSON.stringify(payload),
+            body: JSON.stringify(paymentData),
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || 'Failed to add payment');

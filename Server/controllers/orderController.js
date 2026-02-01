@@ -1,5 +1,20 @@
 const orderService = require('../services/orderService');
 
+const createOrder = async (req, res, next) => {
+    try {
+        const userId = req.user.id; // From auth middleware
+        const order = await orderService.createOrder(req.body, userId);
+
+        res.status(201).json({
+            success: true,
+            message: 'Order placed successfully',
+            data: order
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 const getAllOrders = async (req, res, next) => {
     try {
         const result = await orderService.getAllOrders(req.query);
@@ -91,5 +106,6 @@ module.exports = {
     getOrderById,
     updateOrderStatus,
     updateOrder,
-    deleteOrder
+    deleteOrder,
+    createOrder
 };

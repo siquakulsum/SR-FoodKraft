@@ -6,9 +6,10 @@ const listMenuItems = async ({ page = 1, limit = 10, search, category, type, ava
     const where = {};
 
     if (search) {
+        const lowerSearch = search.toLowerCase();
         where[Op.or] = [
-            { name: { [Op.like]: `%${search}%` } },
-            { description: { [Op.like]: `%${search}%` } }
+            Sequelize.where(Sequelize.fn('LOWER', Sequelize.col('name')), 'LIKE', `%${lowerSearch}%`),
+            Sequelize.where(Sequelize.fn('LOWER', Sequelize.col('description')), 'LIKE', `%${lowerSearch}%`)
         ];
     }
 
@@ -75,6 +76,8 @@ const createMenuItem = async (data, imageFile) => {
         if (imageFile) {
             // Assuming "uploads/" is served as static
             mainImageUrl = `/uploads/${imageFile.filename}`;
+        } else if (data.image_url) {
+            mainImageUrl = data.image_url;
         }
 
         const menuItem = await MenuItem.create({
@@ -118,6 +121,9 @@ const updateMenuItem = async (id, data, imageFile) => {
                 image_url: updates.image_url,
                 display_order: 0 // Logic to put at end? Or replace? 
             }, { transaction });
+        } else if (data.image_url) {
+            updates.image_url = data.image_url;
+            // Might want to add to images table if it's new, but simple update is fine for MVP
         }
 
         await menuItem.update(updates, { transaction });

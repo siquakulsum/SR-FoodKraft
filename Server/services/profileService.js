@@ -1,7 +1,9 @@
-const { User } = require('../models');
+const { User, OtpLog } = require('../models');
 const { Op } = require('sequelize');
 const fs = require('fs');
 const path = require('path');
+const bcrypt = require('bcrypt');
+const validator = require('validator');
 
 // Upload to local storage
 // In production, replace this with AWS S3, Cloudinary, etc.
@@ -31,13 +33,13 @@ const getProfile = async (userId) => {
     return user;
 };
 
-const updateProfile = async (userId, data) => {
-    const { name, email, phone, avatar_url } = data;
-
+// Initiate sensitive change (Mock OTP sending)
+const requestSensitiveChange = async (userId, data) => {
+    const { email, phone } = data;
     const user = await User.findByPk(userId);
     if (!user) throw new Error('User not found');
 
-    // Only check for duplicates if email or phone is being updated
+    // Check for duplicates before sending OTP
     if (email || phone) {
         const whereConditions = [];
         if (email) whereConditions.push({ email });
@@ -56,7 +58,82 @@ const updateProfile = async (userId, data) => {
         }
     }
 
-    // Update only the fields that are provided
+    // Generate 6-digit OTP
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+    let contactType = 'email';
+    let contactValue = email || user.email;
+
+    if (phone && phone !== user.phone) {
+        contactType = 'phone';
+        contactValue = phone;
+    } else if (email && email !== user.email) {
+        contactType = 'email';
+        contactValue = email;
+    } else {
+        // No sensitive change, just update metadata
+        return null;
+    }
+
+    // Save to DB
+    await OtpLog.create({
+        user_id: userId,
+        otp_code: otpCode,
+        contact_type: contactType,
+        contact_value: contactValue,
+        expires_at: expiresAt,
+        is_verified: false
+    });
+
+    console.log(`[MOCK OTP] Sent to ${contactValue}: ${otpCode}`);
+
+    return {
+        otp_required: true,
+        message: `OTP sent to ${contactValue}. Please verify to complete the update.`,
+        contact_type: contactType,
+        contact_value: contactValue
+    };
+};
+
+const verifyOtp = async (userId, otpCode, contactValue, updateData) => {
+    const otpRecord = await OtpLog.findOne({
+        where: {
+            user_id: userId,
+            contact_value: contactValue,
+            otp_code: otpCode,
+            is_verified: false,
+            expires_at: { [Op.gt]: new Date() }
+        },
+        order: [['created_at', 'DESC']]
+    });
+
+    if (!otpRecord) {
+        throw new Error('Invalid or expired OTP');
+    }
+
+    // Mark as verified
+    await otpRecord.update({ is_verified: true });
+
+    // Proceed with update
+    return await updateProfile(userId, updateData, true);
+};
+
+const updateProfile = async (userId, data, isVerified = false) => {
+    const { name, email, phone, avatar_url } = data;
+
+    const user = await User.findByPk(userId);
+    if (!user) throw new Error('User not found');
+
+    // If email/phone changed and NOT verified, request OTP
+    if ((email && email !== user.email) || (phone && phone !== user.phone)) {
+        if (!isVerified) {
+            const otpRequest = await requestSensitiveChange(userId, data);
+            if (otpRequest) return otpRequest;
+        }
+    }
+
+    // Update fields
     if (name !== undefined) user.name = name;
     if (email !== undefined) user.email = email;
     if (phone !== undefined) user.phone = phone;
@@ -70,8 +147,49 @@ const updateProfile = async (userId, data) => {
         email: user.email,
         phone: user.phone,
         avatar_url: user.avatar_url,
-        role: user.role
+        role: user.role,
+        otp_required: false
     };
+};
+
+const changePassword = async (userId, currentPassword, newPassword) => {
+    const user = await User.findByPk(userId);
+    if (!user) throw new Error('User not found');
+
+    // Verify current password
+    if (!user.password_hash) {
+        // Handle case where user might not have a password (e.g. OAuth), though unlikely for Admin
+        throw new Error('Password not set for this user');
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!isMatch) {
+        throw new Error('Incorrect current password');
+    }
+
+    // Validate new password strength
+    // Regex: At least 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special character
+    const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+
+    console.log('--- DEBUG PASSWORD CHANGE ---');
+    console.log(`Received Password: "${newPassword}"`);
+    console.log(`Example Match: ${strongPasswordRegex.test("Admin@123")}`);
+
+    if (!strongPasswordRegex.test(newPassword)) {
+        console.log('Validation FAILED');
+        throw new Error('Password must be at least 8 characters long and contain uppercase, lowercase, number, and a special character. [Rules Updated]');
+    }
+    console.log('Validation PASSED');
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    user.password_hash = hashedPassword;
+    // user.last_password_change = new Date(); // If we had this field
+    await user.save();
+
+    return { message: 'Password changed successfully' };
 };
 
 const uploadAvatar = async (userId, file) => {
@@ -117,5 +235,7 @@ module.exports = {
     getProfile,
     updateProfile,
     uploadAvatar,
-    removeAvatar
+    removeAvatar,
+    verifyOtp,
+    changePassword
 };

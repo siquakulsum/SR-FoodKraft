@@ -33,6 +33,7 @@ const getOffersCount = async (req, res) => {
 
 const createOffer = async (req, res) => {
     try {
+        console.log('Create Offer Body:', req.body);
         validate(createOfferSchema, req.body);
         const offer = await offersService.createOffer(req.body, req.user ? req.user.id : null);
         res.status(201).json({ success: true, data: offer });

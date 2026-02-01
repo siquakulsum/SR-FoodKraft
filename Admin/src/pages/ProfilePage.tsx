@@ -1,21 +1,29 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useAuthStore } from '@/store/auth-store';
 import { api } from '@/services/api';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2, Upload, Trash2, Camera } from 'lucide-react';
+import { VerifyOtpModal } from '@/components/VerifyOtpModal';
 
 const ProfilePage = () => {
     const { admin, initialize, updateProfile: updateStoreProfile } = useAuthStore();
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    console.log('ProfilePage Debug - Admin State:', admin);
+
     const [loading, setLoading] = useState(false);
     const [avatarLoading, setAvatarLoading] = useState(false);
+
+    // OTP Modal State
+    const [otpModalOpen, setOtpModalOpen] = useState(false);
+    const [otpContactValue, setOtpContactValue] = useState('');
+    const [pendingUpdateData, setPendingUpdateData] = useState<any>(null);
 
     // Profile Form State
     const [formData, setFormData] = useState({
@@ -60,7 +68,7 @@ const ProfilePage = () => {
 
         // Basic Validation
         const phoneRegex = /^[0-9]{10,15}$/;
-        if (!phoneRegex.test(formData.phone)) {
+        if (formData.phone && !phoneRegex.test(formData.phone)) {
             toast({
                 title: "Invalid Phone Number",
                 description: "Phone number must be between 10 and 15 digits.",
@@ -71,42 +79,23 @@ const ProfilePage = () => {
         }
 
         try {
-            // Since api.updateProfile points to /me (generic) but we want to ensure admin endpoints usage if needed.
-            // However, instructed to use existing api.updateProfile which I confirmed uses PUT /api/auth/me.
-            // Backend note: The user requested to use /admin/profile routes. 
-            // My API analysis showed api.ts uses /me. 
-            // I should use api.updateProfile but ideally it should call the new endpoint.
-            // Since I didn't change updateProfile in api.ts (only added avatar methods),
-            // I will use api.updateProfile and assume the backend /me route handles it OR I should have updated it.
-            // Actually, /api/auth/me in backend likely points to authController.updateMe.
-            // If I want to use my new profileController, I should have updated api.ts to use /admin/profile.
-            // I will proceed with api.updateProfile for now as it updates the store.
+            const result: any = await api.updateProfile(formData);
 
-            // Wait! The requirement was "Integrate the existing backend Profile API: PATCH /admin/profile".
-            // My previous step missed updating updateProfile in api.ts to use /admin/profile.
-            // I will fix this right here using a direct fetch if api.ts is not updated, 
-            // OR better, I will assume api.updateProfile is what I should use or I will verify if I should update it.
-            // Let's stick to the plan: I updated api.ts with avatar methods. I probably should have updated updateProfile too.
-            // BUT, to be "self-contained", I can call the API directly here if api.ts is deficient,
-            // OR just use api.updateProfile and relying on it being correct (or updating it in next step if I realized).
-            // Let's use api.updateProfile for now, assuming it might be mapped correctly or suffices.
-            // actually, let's fetch directly to ensure compliance with /admin/profile requirement if api.ts is strictly /me.
-
-            // RE-READING: "Integrate existing backend Profile API ... PATCH /admin/profile".
-            // I will modify `api.ts` in a subsequent step if needed, but for this component, let's assume `api.updateProfile` does the job
-            // OR acts as a wrapper. 
-
-            // To be safe and compliant with the specific route requirement, I'll allow the api.updateProfile to be used
-            // but if strictly /admin/profile is needed, I should have updated api.ts.
-            // I'll stick to api.updateProfile for consistency with the store.
-
-            const updatedUser = await api.updateProfile(formData);
-            await updateStoreProfile(updatedUser);
-
-            toast({
-                title: "Profile Updated",
-                description: "Your profile details have been successfully updated.",
-            });
+            if (result.otp_required) {
+                setOtpContactValue(result.contact_value);
+                setPendingUpdateData(formData);
+                setOtpModalOpen(true);
+                toast({
+                    title: "Verification Required",
+                    description: result.message,
+                });
+            } else {
+                await updateStoreProfile(result);
+                toast({
+                    title: "Profile Updated",
+                    description: "Your profile details have been successfully updated.",
+                });
+            }
         } catch (error: any) {
             toast({
                 title: "Update Failed",
@@ -115,6 +104,25 @@ const ProfilePage = () => {
             });
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleVerifyOtp = async (otp: string) => {
+        if (!pendingUpdateData) return;
+
+        try {
+            const result = await api.verifyOtp(otp, otpContactValue, pendingUpdateData);
+            await updateStoreProfile(result);
+
+            toast({
+                title: "Profile Verified & Updated",
+                description: "Your contact details have been securely updated.",
+            });
+
+            setPendingUpdateData(null);
+            setOtpModalOpen(false); // Close modal on success
+        } catch (error: any) {
+            throw error;
         }
     };
 
@@ -167,8 +175,15 @@ const ProfilePage = () => {
             toast({ title: "Password Mismatch", description: "New passwords do not match.", variant: "destructive" });
             return;
         }
-        if (passwordData.newPassword.length < 6) {
-            toast({ title: "Weak Password", description: "Password must be at least 6 characters.", variant: "destructive" });
+        // Strict Frontend Validation matching Backend
+        // Min 8 chars, Uppercase, Lowercase, Number, Special Char
+        const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+        if (!strongPasswordRegex.test(passwordData.newPassword)) {
+            toast({
+                title: "Weak Password",
+                description: "Password must be at least 8 characters and include uppercase, lowercase, number, and a special character.",
+                variant: "destructive"
+            });
             return;
         }
 
@@ -322,6 +337,14 @@ const ProfilePage = () => {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* OTP Verification Modal */}
+            <VerifyOtpModal
+                isOpen={otpModalOpen}
+                onClose={() => setOtpModalOpen(false)}
+                onVerify={handleVerifyOtp}
+                contactValue={otpContactValue}
+            />
         </div>
     );
 };

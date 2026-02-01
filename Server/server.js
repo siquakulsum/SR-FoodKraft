@@ -16,15 +16,26 @@ process.on('uncaughtException', (error) => {
     console.error('Uncaught Exception:', error);
 });
 
+const path = require('path'); // Ensure path is imported
+
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://localhost:5174'],
+    origin: [
+        'http://localhost:5173', 'http://localhost:5174',
+        'http://127.0.0.1:5173', 'http://127.0.0.1:5174'
+    ],
     credentials: true
 }));
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
-// Serve uploaded files
-app.use('/uploads', express.static('uploads'));
+// Debug logging for uploads
+app.use('/uploads', (req, res, next) => {
+    console.log(`[Upload Request] ${req.method} ${req.url}`);
+    next();
+});
+
+// Serve uploaded files statically (Absolute path)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const authRoutes = require('./routes/authRoutes');
 console.log('✓ Auth routes loaded');
@@ -89,8 +100,10 @@ app.use((err, req, res, next) => {
     });
 });
 
-// Sync database (optional, better to use migrations)
-// db.sequelize.sync(); 
+// Sync database
+db.sequelize.sync({ alter: true }).then(() => {
+    console.log('✓ Database schema synchronized');
+});
 
 if (require.main === module) {
     // Test database connection before starting server

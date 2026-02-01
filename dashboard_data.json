@@ -1,0 +1,287 @@
+{
+  "stats": {
+    "totalOrders": 2,
+    "totalRevenue": 500,
+    "totalCustomers": 13,
+    "totalInquiries": 5,
+    "todayRevenue": 0,
+    "pendingOrders": 2,
+    "newCustomersToday": 0,
+    "pendingPayments": 0,
+    "activeMenuItems": 4
+  },
+  "recentOrders": [
+    {
+      "id": "7e253832-8674-4805-843e-034456cf7bbd",
+      "user_id": "5ead4600-7c1e-43b6-bd85-abda74d6dca6",
+      "order_number": "ORD1769106463780",
+      "status": "out_for_delivery",
+      "order_type": "delivery",
+      "delivery_address_json": {
+        "zip": "12345",
+        "city": "Test City",
+        "street": "123 Test St"
+      },
+      "total_amount": "530.00",
+      "subtotal": "500.00",
+      "gst_amount": "0.00",
+      "delivery_charges": "30.00",
+      "service_charges": "0.00",
+      "event_date": "2026-01-22",
+      "event_time": "12:00:00",
+      "special_instructions": "Less spicy please",
+      "payment_status": "paid",
+      "payment_method": "cod",
+      "createdAt": "2026-01-22T18:27:43.000Z",
+      "updatedAt": "2026-01-29T18:17:40.000Z",
+      "deletedAt": null,
+      "user": {
+        "name": "Test Customer",
+        "email": "testcustomer@example.com",
+        "phone": "9876543210"
+      },
+      "items": [
+        {
+          "id": "1f6a4906-268c-4dbc-907c-507ae0b074da",
+          "order_id": "7e253832-8674-4805-843e-034456cf7bbd",
+          "menu_item_id": "22222222-2222-2222-2222-222222222222",
+          "menu_item_name": "Butter Naan",
+          "quantity": "4.00",
+          "unit_type": "piece",
+          "unit_price": "35.00",
+          "total_price": "140.00",
+          "special_instructions": null,
+          "createdAt": "2026-01-29T18:17:40.000Z",
+          "updatedAt": "2026-01-29T18:17:40.000Z",
+          "deletedAt": null,
+          "menu_item": {
+            "image_url": null
+          }
+        },
+        {
+          "id": "affd7a0e-4bc2-4733-9535-95f454e1f466",
+          "order_id": "7e253832-8674-4805-843e-034456cf7bbd",
+          "menu_item_id": "5f885c39-5ee2-4d67-9ea7-89d71e4cf22c",
+          "menu_item_name": "Chicken Biryani",
+          "quantity": "2.00",
+          "unit_type": "plate",
+          "unit_price": "180.00",
+          "total_price": "360.00",
+          "special_instructions": "Extra raita",
+          "createdAt": "2026-01-29T18:17:40.000Z",
+          "updatedAt": "2026-01-29T18:17:40.000Z",
+          "deletedAt": null,
+          "menu_item": {
+            "image_url": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "0c8360bd-57e3-4f0b-8cee-24f97526dc64",
+      "user_id": "5ead4600-7c1e-43b6-bd85-abda74d6dca6",
+      "order_number": "ORD1769106421779",
+      "status": "out_for_delivery",
+      "order_type": "delivery",
+      "delivery_address_json": {
+        "zip": "12345",
+        "city": "Test City",
+        "street": "123 Test St"
+      },
+      "total_amount": "330.00",
+      "subtotal": "300.00",
+      "gst_amount": "0.00",
+      "delivery_charges": "30.00",
+      "service_charges": "0.00",
+      "event_date": "2026-01-22",
+      "event_time": "12:00:00",
+      "special_instructions": null,
+      "payment_status": "paid",
+      "payment_method": "cod",
+      "createdAt": "2026-01-22T18:27:01.000Z",
+      "updatedAt": "2026-01-30T11:16:58.000Z",
+      "deletedAt": null,
+      "user": {
+        "name": "Test Customer",
+        "email": "testcustomer@example.com",
+        "phone": "9876543210"
+      },
+      "items": [
+        {
+          "id": "2be40d7f-47b4-4c48-89eb-810ccb936edc",
+          "order_id": "0c8360bd-57e3-4f0b-8cee-24f97526dc64",
+          "menu_item_id": "5f885c39-5ee2-4d67-9ea7-89d71e4cf22c",
+          "menu_item_name": "Test Burger",
+          "quantity": "2.00",
+          "unit_type": "piece",
+          "unit_price": "150.00",
+          "total_price": "300.00",
+          "special_instructions": null,
+          "createdAt": "2026-01-22T18:27:01.000Z",
+          "updatedAt": "2026-01-22T18:27:01.000Z",
+          "deletedAt": null,
+          "menu_item": {
+            "image_url": null
+          }
+        }
+      ]
+    }
+  ],
+  "recentInquiries": [
+    {
+      "id": "bd959bc2-cf23-47e1-93f4-39b3dc3740e7",
+      "name": "Siqua Kulsum",
+      "email": "Siqua@example.com",
+      "phone": "9123456780",
+      "event_date": "2026-03-10",
+      "event_type": "wedding",
+      "guest_count": 200,
+      "message": "Need something good",
+      "status": "contacted",
+      "priority": "high",
+      "assigned_to": null,
+      "quote_amount": "10000.00",
+      "notes": null,
+      "createdAt": "2026-01-21T16:58:15.000Z",
+      "updatedAt": "2026-01-21T16:58:15.000Z",
+      "deletedAt": null,
+      "assignedUser": null
+    },
+    {
+      "id": "da83f082-8e6a-47ee-9fb6-3b2658ba3acc",
+      "name": "Charlie Brown",
+      "email": "charlie@example.com",
+      "phone": "9345678902",
+      "event_date": "2026-05-20",
+      "event_type": "anniversary",
+      "guest_count": 80,
+      "message": "Surprise setup",
+      "status": "converted",
+      "priority": "low",
+      "assigned_to": null,
+      "quote_amount": "12000.00",
+      "notes": null,
+      "createdAt": "2026-01-21T13:50:36.000Z",
+      "updatedAt": "2026-01-21T13:50:36.000Z",
+      "deletedAt": null,
+      "assignedUser": null
+    },
+    {
+      "id": "9a047bc7-24a3-494f-a8d9-9fede87caedd",
+      "name": "Bob Johnson",
+      "email": "bob@example.com",
+      "phone": "9234567891",
+      "event_date": "2026-04-05",
+      "event_type": "birthday",
+      "guest_count": 50,
+      "message": "Theme: superhero",
+      "status": "quoted",
+      "priority": "high",
+      "assigned_to": null,
+      "quote_amount": "7500.00",
+      "notes": null,
+      "createdAt": "2026-01-21T13:50:25.000Z",
+      "updatedAt": "2026-01-21T13:50:25.000Z",
+      "deletedAt": null,
+      "assignedUser": null
+    },
+    {
+      "id": "4b372490-7aa0-471e-83e6-cf648df5902d",
+      "name": "Siqua",
+      "email": "siqua@example.com",
+      "phone": "9123456780",
+      "event_date": "2026-03-10",
+      "event_type": "corporate",
+      "guest_count": 200,
+      "message": "Need projector and sound system",
+      "status": "contacted",
+      "priority": "medium",
+      "assigned_to": null,
+      "quote_amount": "10000.00",
+      "notes": null,
+      "createdAt": "2026-01-21T13:50:12.000Z",
+      "updatedAt": "2026-01-21T13:50:12.000Z",
+      "deletedAt": null,
+      "assignedUser": null
+    },
+    {
+      "id": "cf18b41e-8748-4374-867f-f786f4f96ce4",
+      "name": "John Doe",
+      "email": "john@example.com",
+      "phone": "9876543210",
+      "event_date": "2026-02-20",
+      "event_type": "wedding",
+      "guest_count": 150,
+      "message": "Need a special setup",
+      "status": "new",
+      "priority": "high",
+      "assigned_to": null,
+      "quote_amount": "5000.00",
+      "notes": null,
+      "createdAt": "2026-01-21T13:49:24.000Z",
+      "updatedAt": "2026-01-21T13:49:24.000Z",
+      "deletedAt": null,
+      "assignedUser": null
+    }
+  ],
+  "todaysSchedule": [],
+  "charts": {
+    "ordersByStatus": [
+      {
+        "status": "out_for_delivery",
+        "count": 2
+      }
+    ],
+    "ordersByType": [
+      {
+        "order_type": "delivery",
+        "count": 2
+      }
+    ],
+    "salesLast7Days": [
+      {
+        "date": "2026-01-29",
+        "revenue": "500.00",
+        "count": 1
+      }
+    ],
+    "topSellingItems": [
+      {
+        "menu_item_id": "22222222-2222-2222-2222-222222222222",
+        "menu_item_name": "Butter Naan",
+        "totalSold": "4.00",
+        "menu_item": {
+          "image_url": null,
+          "price": "15.00"
+        }
+      },
+      {
+        "menu_item_id": "22222222-2222-2222-2222-222222222222",
+        "menu_item_name": "Test Pizza",
+        "totalSold": "3.00",
+        "menu_item": {
+          "image_url": null,
+          "price": "15.00"
+        }
+      },
+      {
+        "menu_item_id": "5f885c39-5ee2-4d67-9ea7-89d71e4cf22c",
+        "menu_item_name": "Test Burger",
+        "totalSold": "2.00",
+        "menu_item": {
+          "image_url": null,
+          "price": "150.00"
+        }
+      },
+      {
+        "menu_item_id": "5f885c39-5ee2-4d67-9ea7-89d71e4cf22c",
+        "menu_item_name": "Chicken Biryani",
+        "totalSold": "2.00",
+        "menu_item": {
+          "image_url": null,
+          "price": "150.00"
+        }
+      }
+    ]
+  }
+}

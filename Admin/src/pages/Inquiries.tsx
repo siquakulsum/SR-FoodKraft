@@ -63,6 +63,15 @@ const priorityConfig = {
 function AddInquiryModal() {
   const { addInquiry } = useInquiryStore();
   const [isOpen, setIsOpen] = useState(false);
+  const [users, setUsers] = useState<any[]>([]);
+
+  useEffect(() => {
+    // Dynamically import api to avoid circular dependency issues if any
+    import('@/services/api').then(({ api }) => {
+      api.getUsers().then(setUsers).catch(console.error);
+    });
+  }, []);
+
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
@@ -85,7 +94,7 @@ function AddInquiryModal() {
       full_name: formData.full_name,
       email: formData.email,
       phone: formData.phone,
-      event_type: formData.event_type as 'wedding' | 'corporate' | 'birthday' | 'anniversary' | 'other' | undefined,
+      event_type: (formData.event_type || undefined) as 'wedding' | 'corporate' | 'birthday' | 'anniversary' | 'other' | undefined,
       event_date: formData.event_date || undefined,
       guest_count: formData.guest_count ? parseInt(formData.guest_count) : undefined,
       additional_details: formData.additional_details || undefined,
@@ -257,11 +266,16 @@ function AddInquiryModal() {
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
               Assigned To
             </label>
-            <Input
-              value={formData.assigned_to}
-              onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
-              placeholder="Enter assignee name"
-            />
+            <Select value={formData.assigned_to} onValueChange={(value) => setFormData({ ...formData, assigned_to: value })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select Assignee" />
+              </SelectTrigger>
+              <SelectContent>
+                {users.map((u: any) => (
+                  <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div>
@@ -320,6 +334,16 @@ function InquiryDetailModal({ inquiry }: { inquiry: Inquiry }) {
   const { updateInquiry } = useInquiryStore();
   const [isOpen, setIsOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [users, setUsers] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (editMode) {
+      import('@/services/api').then(({ api }) => {
+        api.getUsers().then(setUsers).catch(console.error);
+      });
+    }
+  }, [editMode]);
+
   const [formData, setFormData] = useState({
     status: inquiry.status,
     priority: inquiry.priority,
@@ -546,11 +570,16 @@ function InquiryDetailModal({ inquiry }: { inquiry: Inquiry }) {
                       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                         Assigned To
                       </label>
-                      <Input
-                        value={formData.assigned_to}
-                        onChange={(e) => handleInputChange('assigned_to', e.target.value)}
-                        placeholder="Enter assignee name"
-                      />
+                      <Select value={formData.assigned_to} onValueChange={(value) => handleInputChange('assigned_to', value)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Assignee" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {users.map((u: any) => (
+                            <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div>
@@ -659,6 +688,10 @@ export default function Inquiries() {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState('');
+  const [dateStart, setDateStart] = useState('');
+  const [dateEnd, setDateEnd] = useState('');
+
+
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [sortBy, setSortBy] = useState<'created_at' | 'full_name' | 'status' | 'priority'>('created_at');
@@ -686,6 +719,8 @@ export default function Inquiries() {
         priority: priorityFilter === 'all' ? undefined : priorityFilter,
         sortBy,
         sortOrder,
+        date_start: dateStart || undefined,
+        date_end: dateEnd || undefined,
       });
     }, 300);
 
@@ -698,7 +733,9 @@ export default function Inquiries() {
     statusFilter,
     priorityFilter,
     sortBy,
-    sortOrder
+    sortOrder,
+    dateStart,
+    dateEnd
   ]);
 
   // Handle URL parameter to open specific inquiry
@@ -874,8 +911,8 @@ export default function Inquiries() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-            <div className="relative">
+          <div className="flex flex-col lg:flex-row flex-wrap gap-4 items-start lg:items-center">
+            <div className="relative w-full lg:w-64">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
               <input
                 type="text"
@@ -889,53 +926,78 @@ export default function Inquiries() {
               />
             </div>
 
-            <Select value={statusFilter} onValueChange={(value: 'all' | Inquiry['status']) => setStatusFilter(value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="new">New</SelectItem>
-                <SelectItem value="contacted">Contacted</SelectItem>
-                <SelectItem value="quoted">Quoted</SelectItem>
-                <SelectItem value="converted">Converted</SelectItem>
-                <SelectItem value="closed">Closed</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex gap-2 w-full lg:w-auto">
+              <Input
+                type="date"
+                value={dateStart}
+                onChange={(e) => setDateStart(e.target.value)}
+                className="w-full lg:w-[150px] bg-white dark:bg-slate-700"
+                placeholder="Start Date"
+              />
+              <Input
+                type="date"
+                value={dateEnd}
+                onChange={(e) => setDateEnd(e.target.value)}
+                className="w-full lg:w-[150px] bg-white dark:bg-slate-700"
+                placeholder="End Date"
+              />
+            </div>
 
-            <Select value={priorityFilter} onValueChange={(value: 'all' | Inquiry['priority']) => setPriorityFilter(value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by priority" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Priority</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="w-full sm:w-40">
+              <Select value={statusFilter} onValueChange={(value: 'all' | Inquiry['status']) => setStatusFilter(value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="new">New</SelectItem>
+                  <SelectItem value="contacted">Contacted</SelectItem>
+                  <SelectItem value="quoted">Quoted</SelectItem>
+                  <SelectItem value="converted">Converted</SelectItem>
+                  <SelectItem value="closed">Closed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-            <Select value={sortBy} onValueChange={(value: 'created_at' | 'full_name' | 'status' | 'priority') => setSortBy(value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="created_at">Date</SelectItem>
-                <SelectItem value="full_name">Name</SelectItem>
-                <SelectItem value="status">Status</SelectItem>
-                <SelectItem value="priority">Priority</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="w-full sm:w-40">
+              <Select value={priorityFilter} onValueChange={(value: 'all' | Inquiry['priority']) => setPriorityFilter(value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Priority</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-            <Select value={sortOrder} onValueChange={(value: 'asc' | 'desc') => setSortOrder(value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Order" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="desc">Newest First</SelectItem>
-                <SelectItem value="asc">Oldest First</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="w-full sm:w-32">
+              <Select value={sortBy} onValueChange={(value: 'created_at' | 'full_name' | 'status' | 'priority') => setSortBy(value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="created_at">Date</SelectItem>
+                  <SelectItem value="full_name">Name</SelectItem>
+                  <SelectItem value="status">Status</SelectItem>
+                  <SelectItem value="priority">Priority</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="w-full sm:w-32">
+              <Select value={sortOrder} onValueChange={(value: 'asc' | 'desc') => setSortOrder(value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Order" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">Newest First</SelectItem>
+                  <SelectItem value="asc">Oldest First</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 

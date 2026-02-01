@@ -2,9 +2,9 @@ const Joi = require('joi');
 
 const validateAddPayment = (data) => {
     const schema = Joi.object({
-        order_id: Joi.string().uuid().required(),
+        order_id: Joi.string().required(),
         amount: Joi.number().positive().precision(2).required(),
-        payment_method: Joi.string().valid('cod', 'card', 'upi', 'netbanking').required(),
+        payment_method: Joi.string().valid('cod', 'card', 'upi', 'netbanking', 'cash').required(),
         transaction_id: Joi.string().optional(),
         provider: Joi.string().optional(),
         provider_response: Joi.object().optional(),

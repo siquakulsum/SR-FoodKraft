@@ -10,17 +10,24 @@ interface MenuState {
   loading: boolean;
   error: string | null;
 
+  categories: any[];
+  productTypes: any[];
+
   fetchMenuItems: (params?: any) => Promise<void>;
+  fetchCategories: () => Promise<void>;
+  fetchProductTypes: () => Promise<void>;
   addMenuItem: (itemData: FormData) => Promise<void>;
   updateMenuItem: (id: string, itemData: FormData) => Promise<void>;
   deleteMenuItem: (id: string) => Promise<void>;
   toggleAvailability: (id: string) => Promise<void>;
   toggleFeatured: (id: string) => Promise<void>;
-  updateFeaturedPriority: (items: MenuItem[]) => void; // Keeping for drag-drop if strictly needed, but API might handle it differently
+  updateFeaturedPriority: (items: MenuItem[]) => void;
 }
 
 export const useMenuStore = create<MenuState>((set, get) => ({
   menuItems: [],
+  categories: [],
+  productTypes: [],
   totalItems: 0,
   totalPages: 0,
   currentPage: 1,
@@ -31,14 +38,10 @@ export const useMenuStore = create<MenuState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const data = await api.getMenuItems(params);
-      // data is expected to be { items: [...], pagination: { total, pages, ... } } or similar
-      // Based on typical response: { success: true, data: { items: [], total: 10, totalPages: 1, currentPage: 1 } }
-      // api.getMenuItems returns data.data from the response.
-
       set({
         menuItems: data.items || [],
         totalItems: data.total || 0,
-        totalPages: Math.ceil((data.total || 0) / (params?.limit || 10)), // Calculate locally or use data.limit
+        totalPages: Math.ceil((data.total || 0) / (params?.limit || 10)),
         currentPage: data.page || 1,
         loading: false
       });
@@ -47,17 +50,45 @@ export const useMenuStore = create<MenuState>((set, get) => ({
     }
   },
 
+  fetchCategories: async () => {
+    try {
+      // Assuming api.getCategories exists or we add it to api.ts service.
+      // If not in api.ts, fetch directly or update api.ts.
+      const response = await fetch('/api/cms/categories', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        set({ categories: data.data });
+      }
+    } catch (error) {
+      console.error('Failed to fetch categories', error);
+    }
+  },
+
+  fetchProductTypes: async () => {
+    try {
+      const response = await fetch('/api/cms/product-types', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        set({ productTypes: data.data });
+      }
+    } catch (error) {
+      console.error('Failed to fetch product types', error);
+    }
+  },
+
   addMenuItem: async (itemData: FormData) => {
     set({ loading: true, error: null });
     try {
       await api.createMenuItem(itemData);
-      // Refresh list after add
-      // We might want to keep current filters, or reset. For now, let's just re-fetch page 1
       await get().fetchMenuItems({ page: 1 });
       set({ loading: false });
     } catch (error: any) {
       set({ error: error.message, loading: false });
-      throw error; // Re-throw for UI handling
+      throw error;
     }
   },
 
@@ -65,8 +96,7 @@ export const useMenuStore = create<MenuState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       await api.updateMenuItem(id, itemData);
-      // Refresh list to show updates (esp image)
-      await get().fetchMenuItems({ page: get().currentPage }); // Refresh current page
+      await get().fetchMenuItems({ page: get().currentPage });
       set({ loading: false });
     } catch (error: any) {
       set({ error: error.message, loading: false });
@@ -75,7 +105,6 @@ export const useMenuStore = create<MenuState>((set, get) => ({
   },
 
   deleteMenuItem: async (id: string) => {
-    // Optimistic update? Better to be safe and wait for server
     set({ loading: true, error: null });
     try {
       await api.deleteMenuItem(id);
@@ -87,7 +116,6 @@ export const useMenuStore = create<MenuState>((set, get) => ({
   },
 
   toggleAvailability: async (id: string) => {
-    // Optimistic update
     const previousItems = get().menuItems;
     set({
       menuItems: previousItems.map(item =>
@@ -98,13 +126,11 @@ export const useMenuStore = create<MenuState>((set, get) => ({
     try {
       await api.toggleMenuAvailability(id);
     } catch (error: any) {
-      // Revert on error
       set({ menuItems: previousItems, error: error.message });
     }
   },
 
   toggleFeatured: async (id: string) => {
-    // Optimistic update
     const previousItems = get().menuItems;
     set({
       menuItems: previousItems.map(item =>
@@ -115,15 +141,11 @@ export const useMenuStore = create<MenuState>((set, get) => ({
     try {
       await api.toggleMenuFeatured(id);
     } catch (error: any) {
-      // Revert
       set({ menuItems: previousItems, error: error.message });
     }
   },
 
   updateFeaturedPriority: (items) => {
-    // This is likely local reordering.
-    // If backend persistence is needed, we'd need an API.
-    // Keeping local state update for now.
     set({ menuItems: items });
   },
 }));

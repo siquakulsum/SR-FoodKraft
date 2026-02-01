@@ -3,13 +3,30 @@ import { useMenuStore } from '@/store/menu-store';
 import { useOfferStore } from '@/store/offer-store';
 import { Plus, Pencil, Trash2, Search, Upload, Link as LinkIcon, X, Star, Tag, CheckCircle, AlertCircle } from 'lucide-react';
 import { Pagination } from '@/components/ui/pagination';
-import { categoryNames, typeNames } from '@/lib/menu-mock-data';
+// Removed mock import
+// import { categoryNames, typeNames } from '@/lib/menu-mock-data';
 
 const UNIT_TYPES = ['piece', 'kg', 'gram', 'plate', 'bowl', 'liter', 'ml', 'dozen', 'box', 'packet'];
 
 export default function Menu() {
-  const { menuItems, totalItems, totalPages, currentPage, loading, fetchMenuItems, addMenuItem, updateMenuItem, deleteMenuItem, toggleAvailability, toggleFeatured } = useMenuStore();
-  const { offers } = useOfferStore();
+  const {
+    menuItems,
+    categories,
+    productTypes,
+    totalItems,
+    totalPages,
+    currentPage,
+    loading,
+    fetchMenuItems,
+    fetchCategories,
+    fetchProductTypes,
+    addMenuItem,
+    updateMenuItem,
+    deleteMenuItem,
+    toggleAvailability,
+    toggleFeatured
+  } = useMenuStore();
+  const { offers, fetchOffers } = useOfferStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [isOpen, setIsOpen] = useState(false);
@@ -48,6 +65,16 @@ export default function Menu() {
     message: '',
   });
 
+  // Initial Data Fetch
+  useEffect(() => {
+    fetchCategories();
+    fetchProductTypes();
+    fetchOffers();
+  }, [fetchCategories, fetchProductTypes, fetchOffers]);
+
+  // Debugging logs
+  console.log('Menu Store State:', { categories, productTypes, menuItems, offers });
+
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -69,15 +96,34 @@ export default function Menu() {
   };
 
   const getCategoryName = (categoryId?: string) => {
-    return categoryNames[categoryId || ''] || 'Uncategorized';
+    if (!categoryId) return 'Uncategorized';
+    const cat = categories.find(c => c.id === categoryId);
+    return cat ? cat.name : 'Uncategorized';
   };
 
   const getTypeName = (typeId?: string) => {
-    return typeNames[typeId || '']?.name || '';
+    if (!typeId) return '';
+    const type = productTypes.find(t => t.id === typeId);
+    return type ? type.name : '';
   };
 
   const getTypeColor = (typeId?: string) => {
-    return typeNames[typeId || '']?.color || '#6B7280';
+    if (!typeId) return '#6B7280';
+    const type = productTypes.find(t => t.id === typeId);
+    return type ? type.color : '#6B7280';
+  };
+
+  const getImageUrl = (url?: string) => {
+    if (!url) return null;
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+      return url;
+    }
+
+    // Clean up the path
+    const cleanPath = url.startsWith('/') ? url.slice(1) : url;
+
+    // Use direct IP to avoid localhost resolution issues and bypass proxy
+    return `http://127.0.0.1:5000/${cleanPath}`;
   };
 
   // Offer validation logic
@@ -347,8 +393,8 @@ export default function Menu() {
                   className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
                 >
                   <option value="all">All Categories</option>
-                  {Object.entries(categoryNames).map(([id, name]) => (
-                    <option key={id} value={id}>{name}</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
                 </select>
               </div>
@@ -364,8 +410,8 @@ export default function Menu() {
                   className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
                 >
                   <option value="all">All Types</option>
-                  {Object.entries(typeNames).map(([id, type]) => (
-                    <option key={id} value={id}>{type.name}</option>
+                  {productTypes.map((type) => (
+                    <option key={type.id} value={type.id}>{type.name}</option>
                   ))}
                 </select>
               </div>
@@ -419,7 +465,7 @@ export default function Menu() {
             <div className="flex flex-wrap gap-2">
               {categoryFilter !== 'all' && (
                 <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-full text-sm">
-                  Category: {categoryNames[categoryFilter as keyof typeof categoryNames]}
+                  Category: {categories.find(c => c.id === categoryFilter)?.name || 'Unknown'}
                   <button
                     onClick={() => setCategoryFilter('all')}
                     className="ml-1 hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
@@ -430,7 +476,7 @@ export default function Menu() {
               )}
               {typeFilter !== 'all' && (
                 <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 rounded-full text-sm">
-                  Type: {typeNames[typeFilter as keyof typeof typeNames]?.name}
+                  Type: {productTypes.find(t => t.id === typeFilter)?.name || 'Unknown'}
                   <button
                     onClick={() => setTypeFilter('all')}
                     className="ml-1 hover:bg-green-200 dark:hover:bg-green-800 rounded-full p-0.5"
@@ -490,8 +536,9 @@ export default function Menu() {
                   onDoubleClick={() => handleDoubleClick(item)}
                 >
                   <td className="px-6 py-4">
+                    {console.log('Rendering Image:', item.name, getImageUrl(item.image_url))}
                     {item.image_url ? (
-                      <img src={item.image_url} alt={item.name} className="w-12 h-12 rounded-lg object-cover" />
+                      <img src={getImageUrl(item.image_url)} alt={item.name} className="w-12 h-12 rounded-lg object-cover" />
                     ) : (
                       <div className="w-12 h-12 rounded-lg bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
                         <span className="text-xs text-slate-500">No image</span>
@@ -771,7 +818,8 @@ export default function Menu() {
                   </label>
                   <input
                     type="number"
-                    step="0.01"
+                    min="1"
+                    step="1"
                     required
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
@@ -863,8 +911,8 @@ export default function Menu() {
                     className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
                   >
                     <option value="">Select Category</option>
-                    {Object.entries(categoryNames).map(([key, name]) => (
-                      <option key={key} value={key}>{name}</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
                     ))}
                   </select>
                 </div>
@@ -878,8 +926,8 @@ export default function Menu() {
                     className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
                   >
                     <option value="">Select Type</option>
-                    {Object.entries(typeNames).map(([key, { name }]) => (
-                      <option key={key} value={key}>{name}</option>
+                    {productTypes.map((type) => (
+                      <option key={type.id} value={type.id}>{type.name}</option>
                     ))}
                   </select>
                 </div>
@@ -906,7 +954,8 @@ export default function Menu() {
                   </label>
                   <input
                     type="number"
-                    step="0.01"
+                    min="1"
+                    step="1"
                     required
                     value={formData.min_order_qty}
                     onChange={(e) => setFormData({ ...formData, min_order_qty: e.target.value })}
@@ -919,7 +968,8 @@ export default function Menu() {
                   </label>
                   <input
                     type="number"
-                    step="0.01"
+                    min="1"
+                    step="1"
                     value={formData.max_order_qty}
                     onChange={(e) => setFormData({ ...formData, max_order_qty: e.target.value })}
                     className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
@@ -933,7 +983,8 @@ export default function Menu() {
                 </label>
                 <input
                   type="number"
-                  step="0.5"
+                  min="0"
+                  step="1"
                   placeholder="e.g., 2"
                   value={formData.pre_order_time}
                   onChange={(e) => setFormData({ ...formData, pre_order_time: e.target.value })}
@@ -1079,7 +1130,7 @@ export default function Menu() {
                 <div className="flex-shrink-0 mx-auto sm:mx-0">
                   {selectedItem.image_url ? (
                     <img
-                      src={selectedItem.image_url}
+                      src={getImageUrl(selectedItem.image_url)}
                       alt={selectedItem.name}
                       className="w-24 h-24 sm:w-32 sm:h-32 rounded-xl object-cover"
                     />
