@@ -16,6 +16,8 @@ import Inquiries from '@/pages/Inquiries';
 
 import { useEffect } from 'react';
 import { useAuthStore } from '@/store/auth-store';
+import { Toaster } from '@/components/ui/sonner';
+import { Toaster as ShadcnToaster } from '@/components/ui/toaster';
 
 function App() {
   const initialize = useAuthStore((state) => state.initialize);
@@ -52,6 +54,8 @@ function App() {
         {/* Root redirects */}
         <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
       </Routes>
+      <Toaster />
+      <ShadcnToaster />
     </ThemeProvider>
   );
 }

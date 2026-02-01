@@ -22,15 +22,35 @@ export default function GSTSettingsManager() {
   });
 
   const handleSave = async () => {
+    // Validation
+    const gstRateNum = parseFloat(formData.gstRate);
+    if (isNaN(gstRateNum) || gstRateNum < 0 || gstRateNum > 100) {
+      toast({
+        title: "Validation Error",
+        description: "GST Rate must be a number between 0 and 100",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.businessName.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Business name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSaving(true);
     try {
       await updateSettings({
-        gstRate: parseFloat(formData.gstRate),
+        gstRate: gstRateNum,
         businessName: formData.businessName,
         businessAddress: formData.businessAddress,
         gstNumber: formData.gstNumber,
-        deliveryCharges: parseFloat(formData.deliveryCharges),
-        serviceCharges: parseFloat(formData.serviceCharges),
+        deliveryCharges: parseFloat(formData.deliveryCharges) || 0,
+        serviceCharges: parseFloat(formData.serviceCharges) || 0,
       });
       toast({
         title: "Settings Updated",

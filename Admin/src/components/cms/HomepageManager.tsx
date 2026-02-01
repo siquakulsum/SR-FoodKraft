@@ -5,20 +5,22 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Home, 
-  Star, 
-  Menu, 
-  Calendar, 
-  MessageSquare, 
-  Plus, 
+import {
+  Home,
+  Star,
+  Menu,
+  Calendar,
+  MessageSquare,
+  Plus,
   Trash2
 } from 'lucide-react';
-import { 
-  Event, 
+import { DeleteModal } from '../DeleteModal';
+import {
+  Event,
   Testimonial
 } from '@/types/cms';
 import { useHomepageStore } from '@/store/homepage-store';
+import { toast } from 'sonner';
 
 export default function HomepageManager() {
   const [activeTab, setActiveTab] = useState('hero');
@@ -60,36 +62,97 @@ export default function HomepageManager() {
 
 
   const [isEditing, setIsEditing] = useState<string | null>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteConfig, setDeleteConfig] = useState<{
+    id: string;
+    type: 'event' | 'testimonial';
+    title: string;
+    description: string;
+  } | null>(null);
   const [newEvent, setNewEvent] = useState<Partial<Event>>({});
   const [newTestimonial, setNewTestimonial] = useState<Partial<Testimonial>>({});
 
   const handleSaveHero = () => {
-    updateHeroSection(heroSection);
-    setIsEditing(null);
+    try {
+      if (!heroSection.title.trim()) {
+        toast.error('Hero title is required');
+        return;
+      }
+      updateHeroSection(heroSection);
+      toast.success('Hero section saved successfully');
+      setIsEditing(null);
+    } catch (error) {
+      toast.error('Failed to save hero section');
+    }
   };
 
   const handleSaveFeaturedMenu = () => {
-    updateFeaturedMenuSection(featuredMenuSection);
-    setIsEditing(null);
+    try {
+      if (!featuredMenuSection.title.trim()) {
+        toast.error('Featured menu title is required');
+        return;
+      }
+      updateFeaturedMenuSection(featuredMenuSection);
+      toast.success('Featured menu section saved successfully');
+      setIsEditing(null);
+    } catch (error) {
+      toast.error('Failed to save featured menu section');
+    }
   };
 
   const handleSaveExploreMenu = () => {
-    updateExploreMenuSection(exploreMenuSection);
-    setIsEditing(null);
+    try {
+      if (!exploreMenuSection.title.trim()) {
+        toast.error('Explore menu title is required');
+        return;
+      }
+      updateExploreMenuSection(exploreMenuSection);
+      toast.success('Explore menu section saved successfully');
+      setIsEditing(null);
+    } catch (error) {
+      toast.error('Failed to save explore menu section');
+    }
   };
 
   const handleSaveFooter = () => {
-    updateFooterSection(footerSection);
-    setIsEditing(null);
+    try {
+      if (!footerSection.company_name.trim()) {
+        toast.error('Company name is required');
+        return;
+      }
+      updateFooterSection(footerSection);
+      toast.success('Footer updated successfully');
+      setIsEditing(null);
+    } catch (error) {
+      toast.error('Failed to update footer');
+    }
   };
 
   const handleSaveReadyToCreate = () => {
-    updateReadyToCreateSection(readyToCreateSection);
-    setIsEditing(null);
+    try {
+      if (!readyToCreateSection.title.trim()) {
+        toast.error('Ready to Create title is required');
+        return;
+      }
+      updateReadyToCreateSection(readyToCreateSection);
+      toast.success('Section saved successfully');
+      setIsEditing(null);
+    } catch (error) {
+      toast.error('Failed to save section');
+    }
   };
 
   const handleAddEvent = () => {
-    if (newEvent.title && newEvent.description) {
+    if (!newEvent.title?.trim()) {
+      toast.error('Event title is required');
+      return;
+    }
+    if (!newEvent.description?.trim()) {
+      toast.error('Event description is required');
+      return;
+    }
+
+    try {
       addEvent({
         title: newEvent.title!,
         description: newEvent.description!,
@@ -101,11 +164,24 @@ export default function HomepageManager() {
         display_order: events.length + 1,
       });
       setNewEvent({});
+      setIsEditing(null);
+      toast.success('Event added successfully');
+    } catch (error) {
+      toast.error('Failed to add event');
     }
   };
 
   const handleAddTestimonial = () => {
-    if (newTestimonial.client_name && newTestimonial.content) {
+    if (!newTestimonial.client_name?.trim()) {
+      toast.error('Client name is required');
+      return;
+    }
+    if (!newTestimonial.content?.trim()) {
+      toast.error('Testimonial content is required');
+      return;
+    }
+
+    try {
       addTestimonial({
         client_name: newTestimonial.client_name!,
         client_title: newTestimonial.client_title || '',
@@ -117,15 +193,48 @@ export default function HomepageManager() {
         display_order: testimonials.length + 1,
       });
       setNewTestimonial({});
+      setIsEditing(null);
+      toast.success('Testimonial added successfully');
+    } catch (error) {
+      toast.error('Failed to add testimonial');
     }
   };
 
   const handleDeleteEvent = (id: string) => {
-    deleteEvent(id);
+    setDeleteConfig({
+      id,
+      type: 'event',
+      title: 'Delete Event',
+      description: 'Are you sure you want to delete this event? This action cannot be undone.'
+    });
+    setDeleteModalOpen(true);
   };
 
   const handleDeleteTestimonial = (id: string) => {
-    deleteTestimonial(id);
+    setDeleteConfig({
+      id,
+      type: 'testimonial',
+      title: 'Delete Testimonial',
+      description: 'Are you sure you want to delete this testimonial? This action cannot be undone.'
+    });
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (!deleteConfig) return;
+    try {
+      if (deleteConfig.type === 'event') {
+        deleteEvent(deleteConfig.id);
+        toast.success('Event deleted successfully');
+      } else {
+        deleteTestimonial(deleteConfig.id);
+        toast.success('Testimonial deleted successfully');
+      }
+    } catch (error) {
+      toast.error(`Failed to delete ${deleteConfig.type}`);
+    }
+    setDeleteModalOpen(false);
+    setDeleteConfig(null);
   };
 
   return (
@@ -207,7 +316,7 @@ export default function HomepageManager() {
                 <Input
                   id="hero-bg-image"
                   value={heroSection.background_image_url}
-                    onChange={(e) => updateHeroSection({ background_image_url: e.target.value })}
+                  onChange={(e) => updateHeroSection({ background_image_url: e.target.value })}
                   placeholder="https://example.com/image.jpg"
                 />
               </div>
@@ -278,7 +387,7 @@ export default function HomepageManager() {
                 <Input
                   id="featured-title"
                   value={featuredMenuSection.title}
-                    onChange={(e) => updateFeaturedMenuSection({ title: e.target.value })}
+                  onChange={(e) => updateFeaturedMenuSection({ title: e.target.value })}
                   placeholder="Featured Menu of the Day"
                 />
               </div>
@@ -287,7 +396,7 @@ export default function HomepageManager() {
                 <Input
                   id="featured-subtitle"
                   value={featuredMenuSection.subtitle || ''}
-                    onChange={(e) => updateFeaturedMenuSection({ subtitle: e.target.value })}
+                  onChange={(e) => updateFeaturedMenuSection({ subtitle: e.target.value })}
                   placeholder="Discover our chef's special selections"
                 />
               </div>
@@ -315,7 +424,7 @@ export default function HomepageManager() {
                 <Input
                   id="explore-title"
                   value={exploreMenuSection.title}
-                    onChange={(e) => updateExploreMenuSection({ title: e.target.value })}
+                  onChange={(e) => updateExploreMenuSection({ title: e.target.value })}
                   placeholder="Explore Our Menu"
                 />
               </div>
@@ -324,7 +433,7 @@ export default function HomepageManager() {
                 <Input
                   id="explore-subtitle"
                   value={exploreMenuSection.subtitle || ''}
-                    onChange={(e) => updateExploreMenuSection({ subtitle: e.target.value })}
+                  onChange={(e) => updateExploreMenuSection({ subtitle: e.target.value })}
                   placeholder="From traditional favorites to modern innovations"
                 />
               </div>
@@ -741,7 +850,7 @@ export default function HomepageManager() {
                 <Textarea
                   id="footer-description"
                   value={footerSection.description || ''}
-                    onChange={(e) => updateFooterSection({ description: e.target.value })}
+                  onChange={(e) => updateFooterSection({ description: e.target.value })}
                   placeholder="We specialize in creating memorable dining experiences..."
                   rows={3}
                 />
@@ -774,7 +883,7 @@ export default function HomepageManager() {
                 <Textarea
                   id="footer-address"
                   value={footerSection.address || ''}
-                    onChange={(e) => updateFooterSection({ address: e.target.value })}
+                  onChange={(e) => updateFooterSection({ address: e.target.value })}
                   placeholder="123 Food Street, Culinary District, Mumbai, Maharashtra 400001"
                   rows={2}
                 />
@@ -788,7 +897,7 @@ export default function HomepageManager() {
                     <Input
                       id="footer-facebook"
                       value={footerSection.social_links.facebook || ''}
-                      onChange={(e) => updateFooterSection({ 
+                      onChange={(e) => updateFooterSection({
                         social_links: { ...footerSection.social_links, facebook: e.target.value }
                       })}
                       placeholder="https://facebook.com/srfoodkraft"
@@ -799,7 +908,7 @@ export default function HomepageManager() {
                     <Input
                       id="footer-instagram"
                       value={footerSection.social_links.instagram || ''}
-                      onChange={(e) => updateFooterSection({ 
+                      onChange={(e) => updateFooterSection({
                         social_links: { ...footerSection.social_links, instagram: e.target.value }
                       })}
                       placeholder="https://instagram.com/srfoodkraft"
@@ -813,7 +922,7 @@ export default function HomepageManager() {
                 <Input
                   id="footer-copyright"
                   value={footerSection.copyright_text}
-                    onChange={(e) => updateFooterSection({ copyright_text: e.target.value })}
+                  onChange={(e) => updateFooterSection({ copyright_text: e.target.value })}
                   placeholder="© 2024 SR FoodKraft. All rights reserved."
                 />
               </div>
@@ -827,6 +936,17 @@ export default function HomepageManager() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <DeleteModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setDeleteConfig(null);
+        }}
+        onConfirm={confirmDelete}
+        title={deleteConfig?.title}
+        description={deleteConfig?.description}
+      />
     </div>
   );
 }

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useCMSEnhancedStore } from '@/store/cms-enhanced-store';
 import { Image, Upload, Trash2, Eye, EyeOff } from 'lucide-react';
+import { toast } from 'sonner';
+import { DeleteModal } from '../DeleteModal';
 
 export default function ImageGalleryManager() {
   const {
@@ -21,6 +23,10 @@ export default function ImageGalleryManager() {
     category: 'general',
     display_order: 0,
   });
+
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [imageToDelete, setImageToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchGalleryImages();
@@ -50,20 +56,41 @@ export default function ImageGalleryManager() {
         display_order: 0,
       });
       e.target.value = '';
+      toast.success('Image added to gallery');
     } catch (error) {
       console.error('Upload failed:', error);
+      toast.error('Failed to upload image');
     } finally {
       setIsUploading(false);
     }
   };
 
   const handleToggleActive = async (id: string, isActive: boolean) => {
-    await updateGalleryImage(id, { is_active: !isActive });
+    try {
+      await updateGalleryImage(id, { is_active: !isActive });
+      toast.success(`Image ${!isActive ? 'activated' : 'deactivated'}`);
+    } catch (error) {
+      toast.error('Failed to update image status');
+    }
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this image?')) {
-      await deleteGalleryImage(id);
+  const handleDelete = (id: string) => {
+    setImageToDelete(id);
+    setDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!imageToDelete) return;
+    setIsDeleting(true);
+    try {
+      await deleteGalleryImage(imageToDelete);
+      toast.success('Image deleted successfully');
+      setDeleteModalOpen(false);
+      setImageToDelete(null);
+    } catch (error) {
+      toast.error('Failed to delete image');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -198,6 +225,17 @@ export default function ImageGalleryManager() {
           ))}
         </div>
       </div>
+      <DeleteModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setImageToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        loading={isDeleting}
+        title="Delete Gallery Image"
+        description="Are you sure you want to delete this image? This action cannot be undone."
+      />
     </div>
   );
 }

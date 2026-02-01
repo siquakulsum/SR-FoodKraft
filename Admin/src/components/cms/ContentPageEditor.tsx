@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useCMSEnhancedStore } from '@/store/cms-enhanced-store';
 import { FileText, Save, Eye } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function ContentPageEditor() {
   const {
@@ -41,15 +42,31 @@ export default function ContentPageEditor() {
     const page = contentPages.find((p) => p.page_key === selectedPage);
     if (!page) return;
 
+    // Validation
+    if (!formData.title.trim()) {
+      toast.error('Page title is required');
+      return;
+    }
+    if (!formData.content.trim()) {
+      toast.error('Page content is required');
+      return;
+    }
+
     setSaving(true);
-    await updateContentPage(page.id, {
-      title: formData.title,
-      content: formData.content,
-      meta_title: formData.meta_title || null,
-      meta_description: formData.meta_description || null,
-      is_published: formData.is_published,
-    });
-    setSaving(false);
+    try {
+      await updateContentPage(page.id, {
+        title: formData.title,
+        content: formData.content,
+        meta_title: formData.meta_title || null,
+        meta_description: formData.meta_description || null,
+        is_published: formData.is_published,
+      });
+      toast.success('Page contents updated successfully');
+    } catch (error) {
+      toast.error('Failed to update page contents');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const pageOptions = [
