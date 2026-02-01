@@ -1,4 +1,4 @@
-const { User, OtpLog } = require('../models');
+const { User, OtpLog, AuditLog } = require('../models');
 const { Op } = require('sequelize');
 const fs = require('fs');
 const path = require('path');
@@ -112,6 +112,17 @@ const verifyOtp = async (userId, otpCode, contactValue, updateData) => {
         throw new Error('Invalid or expired OTP');
     }
 
+    // [SECURITY FIX] Ensure the update payload matches the verified contact
+    const intendedEmail = updateData.email;
+    const intendedPhone = updateData.phone;
+
+    if (otpRecord.contact_type === 'email' && intendedEmail && intendedEmail !== contactValue) {
+        throw new Error('Security Mismatch: Verified email does not match update request');
+    }
+    if (otpRecord.contact_type === 'phone' && intendedPhone && intendedPhone !== contactValue) {
+        throw new Error('Security Mismatch: Verified phone does not match update request');
+    }
+
     // Mark as verified
     await otpRecord.update({ is_verified: true });
 
@@ -133,6 +144,13 @@ const updateProfile = async (userId, data, isVerified = false) => {
         }
     }
 
+    const previousData = {
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        avatar_url: user.avatar_url
+    };
+
     // Update fields
     if (name !== undefined) user.name = name;
     if (email !== undefined) user.email = email;
@@ -140,6 +158,26 @@ const updateProfile = async (userId, data, isVerified = false) => {
     if (avatar_url !== undefined) user.avatar_url = avatar_url;
 
     await user.save();
+
+    // Audit Log for Profile Update
+    try {
+        await AuditLog.create({
+            user_id: userId,
+            action: 'PROFILE_UPDATE',
+            target_type: 'USER',
+            target_id: userId,
+            details: {
+                message: 'Admin updated profile details',
+                changes: {
+                    before: previousData,
+                    after: { name, email, phone, avatar_url }
+                }
+            },
+            ip_address: 'System'
+        });
+    } catch (auditErr) {
+        console.error('Audit Log Error:', auditErr.message);
+    }
 
     return {
         id: user.id,
@@ -164,6 +202,14 @@ const changePassword = async (userId, currentPassword, newPassword) => {
 
     const isMatch = await bcrypt.compare(currentPassword, user.password_hash);
     if (!isMatch) {
+        await AuditLog.create({
+            user_id: userId,
+            action: 'PASSWORD_CHANGE_FAILED',
+            target_type: 'USER',
+            target_id: userId,
+            details: { reason: 'Incorrect current password' },
+            ip_address: 'System'
+        });
         throw new Error('Incorrect current password');
     }
 
@@ -171,15 +217,9 @@ const changePassword = async (userId, currentPassword, newPassword) => {
     // Regex: At least 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special character
     const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
 
-    console.log('--- DEBUG PASSWORD CHANGE ---');
-    console.log(`Received Password: "${newPassword}"`);
-    console.log(`Example Match: ${strongPasswordRegex.test("Admin@123")}`);
-
     if (!strongPasswordRegex.test(newPassword)) {
-        console.log('Validation FAILED');
-        throw new Error('Password must be at least 8 characters long and contain uppercase, lowercase, number, and a special character. [Rules Updated]');
+        throw new Error('Password must be at least 8 characters long and contain uppercase, lowercase, number, and a special character.');
     }
-    console.log('Validation PASSED');
 
     // Hash new password
     const salt = await bcrypt.genSalt(10);
@@ -188,6 +228,15 @@ const changePassword = async (userId, currentPassword, newPassword) => {
     user.password_hash = hashedPassword;
     // user.last_password_change = new Date(); // If we had this field
     await user.save();
+
+    await AuditLog.create({
+        user_id: userId,
+        action: 'PASSWORD_CHANGE_SUCCESS',
+        target_type: 'USER',
+        target_id: userId,
+        details: { message: 'Password updated successfully' },
+        ip_address: 'System'
+    });
 
     return { message: 'Password changed successfully' };
 };
@@ -212,8 +261,18 @@ const uploadAvatar = async (userId, file) => {
     const user = await User.findByPk(userId);
     if (!user) throw new Error('User not found');
 
+    const oldAvatar = user.avatar_url;
     user.avatar_url = avatarUrl;
     await user.save();
+
+    await AuditLog.create({
+        user_id: userId,
+        action: 'AVATAR_UPLOAD',
+        target_type: 'USER',
+        target_id: userId,
+        details: { old_avatar: oldAvatar, new_avatar: avatarUrl },
+        ip_address: 'System'
+    });
 
     return { avatar_url: avatarUrl };
 };
@@ -225,8 +284,18 @@ const removeAvatar = async (userId) => {
     // Logic to delete from cloud storage would go here
 
     const defaultAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.name);
+    const oldAvatar = user.avatar_url;
     user.avatar_url = defaultAvatar;
     await user.save();
+
+    await AuditLog.create({
+        user_id: userId,
+        action: 'AVATAR_REMOVE',
+        target_type: 'USER',
+        target_id: userId,
+        details: { old_avatar: oldAvatar },
+        ip_address: 'System'
+    });
 
     return { avatar_url: defaultAvatar };
 };
